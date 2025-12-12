@@ -58,13 +58,8 @@ class EpubBuilder:
         book.set_title(self.title)
         book.set_language(self.language)
 
-        chapters: list[epub.EpubHtml] = []
+        content_sections: list[str] = []
         for idx, post in enumerate(posts, start=1):
-            chapter_file = f"post_{idx}.xhtml"
-            chapter = epub.EpubHtml(
-                title=post.title, file_name=chapter_file, lang=self.language
-            )
-
             body_html = _sanitize_content(post.body)
             image_tags: list[str] = []
             for image_idx, image_url in enumerate(post.image_urls, start=1):
@@ -95,15 +90,23 @@ class EpubBuilder:
                 f"<h1>{bleach.clean(post.title)}</h1>"
                 f"<p><em>{author} - {published}</em></p>"
             )
-            chapter.content = f"{header}{body_html}{''.join(image_tags)}"
+            section_html = (
+                f'<section id="post-{idx}">'
+                f"{header}{body_html}{''.join(image_tags)}"
+                "</section>"
+            )
+            content_sections.append(section_html)
 
-            book.add_item(chapter)
-            chapters.append(chapter)
+        chapter = epub.EpubHtml(
+            title=self.title, file_name="post_1.xhtml", lang=self.language
+        )
+        chapter.content = "".join(content_sections)
 
-        book.spine = ["nav", *chapters]
+        book.add_item(chapter)
+        book.spine = ["nav", chapter]
         book.add_item(epub.EpubNcx())
         book.add_item(epub.EpubNav())
-        book.toc = chapters
+        book.toc = [chapter]
 
         epub.write_epub(str(output_path), book)
         return output_path

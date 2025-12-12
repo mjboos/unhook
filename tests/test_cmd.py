@@ -1,12 +1,15 @@
 """Test cases for the __main__ module."""
 
+from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
 import typer
 from typer.testing import CliRunner
+
+from ebooklib import ITEM_DOCUMENT, epub
 
 from unhook.cmd import app, main
 
@@ -20,17 +23,36 @@ def runner() -> CliRunner:
 @pytest.fixture
 def sample_posts():
     """Sample posts data."""
+    created_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     return [
         {
             "post": {
                 "uri": "at://did:plc:test/app.bsky.feed.post/1",
-                "record": {"text": "Test post 1"},
+                "author": {"handle": "user.bsky.social"},
+                "record": {"text": "Test post 1", "created_at": created_at},
+                "embed": {
+                    "images": [
+                        {
+                            "fullsize": "https://example.com/image1.jpg",
+                            "thumb": "https://example.com/thumb1.jpg",
+                        }
+                    ]
+                },
             }
         },
         {
             "post": {
                 "uri": "at://did:plc:test/app.bsky.feed.post/2",
-                "record": {"text": "Test post 2"},
+                "author": {"handle": "user.bsky.social"},
+                "record": {"text": "Test post 2", "created_at": created_at},
+                "embed": {
+                    "images": [
+                        {
+                            "fullsize": "https://example.com/image2.jpg",
+                            "thumb": "https://example.com/thumb2.jpg",
+                        }
+                    ]
+                },
             }
         },
     ]
@@ -94,20 +116,36 @@ def test_fetch_command_mocked_posts_in_file(runner: CliRunner, sample_posts, tmp
 
 
 def test_fetch_writes_actual_file(runner: CliRunner, sample_posts, tmp_path):
-    """Integration test - verify file is written and readable."""
-    with patch("unhook.cmd.fetch_feed_posts") as mock_fetch:
+    """Integration test - export fetched posts to an EPUB file."""
+
+    with patch("unhook.epub_service.fetch_feed_posts") as mock_fetch, patch(
+        "unhook.epub_service.download_images", AsyncMock()
+    ) as mock_download:
         mock_fetch.return_value = sample_posts
+        mock_download.return_value = {
+            "https://example.com/image1.jpg": b"img1",
+            "https://example.com/image2.jpg": b"img2",
+        }
 
         with runner.isolated_filesystem(temp_dir=tmp_path):
-            result = runner.invoke(app, ["fetch", "--output", "output.parquet"])
+            result = runner.invoke(
+                app,
+                [
+                    "export-epub",
+                    "--output-dir",
+                    "exports",
+                    "--file-prefix",
+                    "integration",
+                ],
+            )
 
             assert result.exit_code == 0
 
-            output_file = Path("output.parquet")
-            assert output_file.exists()
-            assert output_file.stat().st_size > 0
+            exports_dir = Path("exports")
+            epub_files = sorted(exports_dir.glob("integration-*.epub"))
 
-            # Verify it's a valid parquet file
-            df = pd.read_parquet(output_file)
-            assert isinstance(df, pd.DataFrame)
-            assert len(df) == 2
+            assert len(epub_files) == 1
+            book = epub.read_epub(epub_files[0])
+            html = next(book.get_items_of_type(ITEM_DOCUMENT)).get_content().decode()
+            assert "Test post 1" in html
+            assert "Test post 2" in html

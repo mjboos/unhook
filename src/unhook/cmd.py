@@ -1,11 +1,13 @@
 """Command-line interface."""
 
+import asyncio
 from datetime import date
 from pathlib import Path
 
 import pandas as pd
 import typer
 
+from unhook.epub_service import export_recent_posts_to_epub
 from unhook.feed import fetch_feed_posts
 
 app = typer.Typer()
@@ -51,6 +53,23 @@ def fetch(
     df.to_parquet(output_path)
 
     typer.echo(f"Saved {len(posts)} posts to {output}")
+
+
+@app.command()
+def export_epub(
+    output_dir: Path = typer.Option(Path("exports"), help="Directory to save EPUBs"),
+    limit: int = typer.Option(200, help="Maximum number of posts to fetch"),
+    hours: int = typer.Option(24, help="Lookback window in hours"),
+    file_prefix: str = typer.Option("posts", help="Filename prefix for the EPUB"),
+) -> None:
+    """Fetch recent posts and export them as an EPUB file."""
+
+    output_path = asyncio.run(
+        export_recent_posts_to_epub(
+            output_dir=output_dir, limit=limit, hours=hours, file_prefix=file_prefix
+        )
+    )
+    typer.echo(f"Saved EPUB to {output_path}")
 
 
 if __name__ == "__main__":

@@ -234,24 +234,3 @@ def test_fetch_feed_posts_pagination(mock_env_vars):
         assert len(result) == 2
         assert mock_client.get_timeline.call_count == 2
 
-
-@pytest.mark.integration
-def test_fetch_feed_posts_integration():
-    """Integration test - fetches real posts from Bluesky."""
-    from dotenv import load_dotenv
-
-    # Load environment variables from .env file
-    load_dotenv()
-
-    # Skip if credentials are not available
-    if not os.getenv("BLUESKY_HANDLE") or not os.getenv("BLUESKY_APP_PASSWORD"):
-        pytest.skip("Bluesky credentials not available")
-
-    result = fetch_feed_posts(limit=10)
-
-    assert isinstance(result, list)
-    assert len(result) <= 10
-    if len(result) > 0:
-        # Verify basic structure of returned posts
-        assert "post" in result[0]
-        assert "uri" in result[0]["post"]

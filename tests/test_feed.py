@@ -1,7 +1,7 @@
 """Test cases for the feed module."""
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -39,11 +39,19 @@ def make_post_mock(post_id: int, text: str, created_at: str):
 @pytest.fixture
 def sample_timeline_response():
     """Sample timeline response data with recent posts."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return MagicMock(
         feed=[
-            make_post_mock(1, "Test post 1", (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z")),
-            make_post_mock(2, "Test post 2", (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z")),
+            make_post_mock(
+                1,
+                "Test post 1",
+                (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
+            ),
+            make_post_mock(
+                2,
+                "Test post 2",
+                (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z"),
+            ),
         ],
         cursor=None,
     )
@@ -115,24 +123,32 @@ def test_parse_timestamp():
     """It parses ISO 8601 timestamps correctly."""
     # Test with Z suffix
     result = parse_timestamp("2025-10-06T12:00:00Z")
-    assert result == datetime(2025, 10, 6, 12, 0, 0, tzinfo=timezone.utc)
+    assert result == datetime(2025, 10, 6, 12, 0, 0, tzinfo=UTC)
 
     # Test with microseconds
     result = parse_timestamp("2025-10-06T12:00:00.123456Z")
-    assert result == datetime(2025, 10, 6, 12, 0, 0, 123456, tzinfo=timezone.utc)
+    assert result == datetime(2025, 10, 6, 12, 0, 0, 123456, tzinfo=UTC)
 
     # Test with explicit timezone offset
     result = parse_timestamp("2025-10-06T12:00:00+00:00")
-    assert result == datetime(2025, 10, 6, 12, 0, 0, tzinfo=timezone.utc)
+    assert result == datetime(2025, 10, 6, 12, 0, 0, tzinfo=UTC)
 
 
 def test_fetch_feed_posts_filters_old_posts(mock_env_vars):
     """It stops fetching when posts are older than since_days."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     old_response = MagicMock(
         feed=[
-            make_post_mock(1, "Recent post", (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z")),
-            make_post_mock(2, "Old post", (now - timedelta(days=10)).isoformat().replace("+00:00", "Z")),
+            make_post_mock(
+                1,
+                "Recent post",
+                (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
+            ),
+            make_post_mock(
+                2,
+                "Old post",
+                (now - timedelta(days=10)).isoformat().replace("+00:00", "Z"),
+            ),
         ],
         cursor=None,
     )
@@ -151,11 +167,19 @@ def test_fetch_feed_posts_filters_old_posts(mock_env_vars):
 
 def test_fetch_feed_posts_no_date_filter(mock_env_vars):
     """It fetches all posts when since_days is None."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     old_response = MagicMock(
         feed=[
-            make_post_mock(1, "Recent post", (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z")),
-            make_post_mock(2, "Old post", (now - timedelta(days=30)).isoformat().replace("+00:00", "Z")),
+            make_post_mock(
+                1,
+                "Recent post",
+                (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
+            ),
+            make_post_mock(
+                2,
+                "Old post",
+                (now - timedelta(days=30)).isoformat().replace("+00:00", "Z"),
+            ),
         ],
         cursor=None,
     )
@@ -173,12 +197,16 @@ def test_fetch_feed_posts_no_date_filter(mock_env_vars):
 
 def test_fetch_feed_posts_pagination(mock_env_vars):
     """It follows pagination cursors to fetch more posts."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # First page response with cursor
     first_response = MagicMock(
         feed=[
-            make_post_mock(1, "Post 1", (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z")),
+            make_post_mock(
+                1,
+                "Post 1",
+                (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
+            ),
         ],
         cursor="cursor_page_2",
     )
@@ -186,7 +214,11 @@ def test_fetch_feed_posts_pagination(mock_env_vars):
     # Second page response without cursor (last page)
     second_response = MagicMock(
         feed=[
-            make_post_mock(2, "Post 2", (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z")),
+            make_post_mock(
+                2,
+                "Post 2",
+                (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z"),
+            ),
         ],
         cursor=None,
     )

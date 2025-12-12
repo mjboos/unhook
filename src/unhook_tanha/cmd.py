@@ -35,7 +35,9 @@ def fetch(
         output: Output filename (default: today's date as YYYY-MM-DD.parquet)
     """
     # Fetch posts (convert 0 to None to disable date filtering)
-    posts = fetch_feed_posts(limit=limit, since_days=since_days if since_days > 0 else None)
+    posts = fetch_feed_posts(
+        limit=limit, since_days=since_days if since_days > 0 else None
+    )
 
     # Convert to DataFrame
     df = pd.DataFrame(posts)

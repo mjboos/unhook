@@ -1,7 +1,7 @@
 """Bluesky feed fetching functionality."""
 
 import os
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from atproto import Client
 from dotenv import load_dotenv
@@ -11,7 +11,8 @@ def parse_timestamp(iso_string: str) -> datetime:
     """Parse ISO 8601 timestamp from Bluesky API.
 
     Args:
-        iso_string: ISO 8601 formatted timestamp string (e.g., "2025-01-06T14:04:52.233Z")
+        iso_string: ISO 8601 formatted timestamp string
+            (e.g., "2025-01-06T14:04:52.233Z")
 
     Returns:
         Timezone-aware datetime object in UTC
@@ -56,7 +57,9 @@ def fetch_feed_posts(
     if since_days is not None:
         reference_date = current_date if current_date is not None else date.today()
         # Convert date to datetime at start of day in UTC
-        reference_datetime = datetime.combine(reference_date, datetime.min.time(), tzinfo=timezone.utc)
+        reference_datetime = datetime.combine(
+            reference_date, datetime.min.time(), tzinfo=UTC
+        )
         cutoff = reference_datetime - timedelta(days=since_days)
     else:
         cutoff = None
@@ -81,7 +84,9 @@ def fetch_feed_posts(
 
             # Check if post is within date range
             if cutoff is not None:
-                created_at_str = post_dict.get("post", {}).get("record", {}).get("created_at")
+                created_at_str = (
+                    post_dict.get("post", {}).get("record", {}).get("created_at")
+                )
                 if created_at_str:
                     created_at = parse_timestamp(created_at_str)
                     if created_at < cutoff:

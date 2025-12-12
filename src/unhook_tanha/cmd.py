@@ -19,6 +19,9 @@ def main() -> None:
 @app.command()
 def fetch(
     limit: int = typer.Option(100, help="Maximum number of posts to fetch"),
+    since_days: int = typer.Option(
+        7, help="Only fetch posts from the last N days (use 0 to disable)"
+    ),
     output: str = typer.Option(
         None, help="Output filename (default: YYYY-MM-DD.parquet)"
     ),
@@ -28,10 +31,11 @@ def fetch(
 
     Args:
         limit: Maximum number of posts to fetch (default: 100)
+        since_days: Only fetch posts from the last N days (default: 7, use 0 to disable)
         output: Output filename (default: today's date as YYYY-MM-DD.parquet)
     """
-    # Fetch posts
-    posts = fetch_feed_posts(limit=limit)
+    # Fetch posts (convert 0 to None to disable date filtering)
+    posts = fetch_feed_posts(limit=limit, since_days=since_days if since_days > 0 else None)
 
     # Convert to DataFrame
     df = pd.DataFrame(posts)

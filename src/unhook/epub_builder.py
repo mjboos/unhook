@@ -89,11 +89,13 @@ class EpubBuilder:
                     f'<p><img src="{file_name}" alt="Image {image_idx}" /></p>'
                 )
 
-            chapter.content = (
+            author = bleach.clean(post.author)
+            published = post.published.isoformat()
+            header = (
                 f"<h1>{bleach.clean(post.title)}</h1>"
-                f"<p><em>{bleach.clean(post.author)} - {post.published.isoformat()}</em></p>"
-                f"{body_html}{''.join(image_tags)}"
+                f"<p><em>{author} - {published}</em></p>"
             )
+            chapter.content = f"{header}{body_html}{''.join(image_tags)}"
 
             book.add_item(chapter)
             chapters.append(chapter)
@@ -101,10 +103,7 @@ class EpubBuilder:
         book.spine = ["nav", *chapters]
         book.add_item(epub.EpubNcx())
         book.add_item(epub.EpubNav())
-        book.toc = [(chapter.title, chapter) for chapter in chapters]
-
-        for chapter in chapters:
-            book.add_item(chapter)
+        book.toc = chapters
 
         epub.write_epub(str(output_path), book)
         return output_path

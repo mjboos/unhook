@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Iterable
 
 from unhook.feed import parse_timestamp
 
@@ -46,7 +46,9 @@ def map_posts_to_content(posts: Iterable[dict]) -> list[PostContent]:
 
         body = record.get("text", "").strip()
         created_at_str = record.get("created_at")
-        published = parse_timestamp(created_at_str) if created_at_str else datetime.now(UTC)
+        published = (
+            parse_timestamp(created_at_str) if created_at_str else datetime.now(UTC)
+        )
         title = body.split("\n", 1)[0][:60] if body else "Untitled"
         image_urls = _extract_image_urls(post_data)
 

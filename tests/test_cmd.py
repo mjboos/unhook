@@ -7,9 +7,8 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 import typer
-from typer.testing import CliRunner
-
 from ebooklib import ITEM_DOCUMENT, epub
+from typer.testing import CliRunner
 
 from unhook.cmd import app, main
 
@@ -118,9 +117,10 @@ def test_fetch_command_mocked_posts_in_file(runner: CliRunner, sample_posts, tmp
 def test_fetch_writes_actual_file(runner: CliRunner, sample_posts, tmp_path):
     """Integration test - export fetched posts to an EPUB file."""
 
-    with patch("unhook.epub_service.fetch_feed_posts") as mock_fetch, patch(
-        "unhook.epub_service.download_images", AsyncMock()
-    ) as mock_download:
+    with (
+        patch("unhook.epub_service.fetch_feed_posts") as mock_fetch,
+        patch("unhook.epub_service.download_images", AsyncMock()) as mock_download,
+    ):
         mock_fetch.return_value = sample_posts
         mock_download.return_value = {
             "https://example.com/image1.jpg": b"img1",
@@ -146,6 +146,10 @@ def test_fetch_writes_actual_file(runner: CliRunner, sample_posts, tmp_path):
 
             assert len(epub_files) == 1
             book = epub.read_epub(epub_files[0])
-            html = next(book.get_items_of_type(ITEM_DOCUMENT)).get_content().decode()
-            assert "Test post 1" in html
-            assert "Test post 2" in html
+            html_docs = [
+                item.get_content().decode()
+                for item in book.get_items_of_type(ITEM_DOCUMENT)
+            ]
+            combined_html = "\n".join(html_docs)
+            assert "Test post 1" in combined_html
+            assert "Test post 2" in combined_html

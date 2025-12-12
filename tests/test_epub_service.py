@@ -38,7 +38,8 @@ async def test_export_recent_posts_to_epub(tmp_path, monkeypatch):
     ]
 
     monkeypatch.setattr(
-        "unhook.epub_service.fetch_feed_posts", lambda limit=200, since_days=1: sample_feed
+        "unhook.epub_service.fetch_feed_posts",
+        lambda limit=200, since_days=1: sample_feed,
     )
     monkeypatch.setattr(
         "unhook.epub_service.download_images",

@@ -1,6 +1,5 @@
 """Test cases for the feed module."""
 
-import os
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -233,4 +232,3 @@ def test_fetch_feed_posts_pagination(mock_env_vars):
         # Should return posts from both pages
         assert len(result) == 2
         assert mock_client.get_timeline.call_count == 2
-

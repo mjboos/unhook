@@ -87,12 +87,9 @@ class EpubBuilder:
             author = bleach.clean(post.author)
             published = post.published.isoformat()
             metadata_html = f"<p><em>{author} - {published}</em></p>"
-            section_html = (
-                f'<section id="post-{idx}">'
-                f"{metadata_html}{body_html}{''.join(image_tags)}"
-                "</section>"
-            )
-            content_sections.append(section_html)
+            content_sections.append(f"{metadata_html}{body_html}{''.join(image_tags)}")
+            if idx < len(posts):
+                content_sections.append("<hr />")
 
         chapter = epub.EpubHtml(
             title=self.title, file_name="post_1.xhtml", lang=self.language

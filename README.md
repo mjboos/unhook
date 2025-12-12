@@ -1,4 +1,4 @@
-# Unhook Tanha
+# Unhook
 
 Information on the internet often comes via a trade:
 - Give away your attentional agency and get interesting info
@@ -19,7 +19,7 @@ In the beginning, to make this simple, just use Bluesky (with an user account an
 
 ## Installation
 
-You can install _Unhook Tanha_ via [uv].
+You can install _Unhook_ via [uv].
 
 ```console
 $ pipx install uv

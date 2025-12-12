@@ -36,7 +36,7 @@ jobs:
 
       - name: Fetch Bluesky feed
         run: |
-          uv run python -m unhook_tanha.cmd fetch \
+          uv run python -m unhook.cmd fetch \
             --limit "${{ github.event.inputs.limit }}" \
             --since-days "${{ github.event.inputs.since_days }}" \
             --output "${{ github.event.inputs.output }}"

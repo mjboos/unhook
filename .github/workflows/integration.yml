@@ -1,0 +1,49 @@
+name: Integration Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum number of posts to fetch"
+        required: false
+        default: "100"
+      since_days:
+        description: "Days of history to include"
+        required: false
+        default: "7"
+      output:
+        description: "Output parquet filename"
+        required: false
+        default: "integration_feed.parquet"
+
+jobs:
+  fetch-feed:
+    runs-on: ubuntu-latest
+    env:
+      BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+      BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Fetch Bluesky feed
+        run: |
+          uv run python -m unhook_tanha.cmd fetch \
+            --limit "${{ github.event.inputs.limit }}" \
+            --since-days "${{ github.event.inputs.since_days }}" \
+            --output "${{ github.event.inputs.output }}"
+
+      - name: Upload parquet
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluesky-feed
+          path: ${{ github.event.inputs.output }}
+          if-no-files-found: error

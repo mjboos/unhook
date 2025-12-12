@@ -1,7 +1,7 @@
 """Bluesky feed fetching functionality."""
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from atproto import Client
 from dotenv import load_dotenv
@@ -19,7 +19,11 @@ def parse_timestamp(iso_string: str) -> datetime:
     return datetime.fromisoformat(iso_string.replace("Z", "+00:00"))
 
 
-def fetch_feed_posts(limit: int = 100, since_days: int | None = 7) -> list[dict]:
+def fetch_feed_posts(
+    limit: int = 100,
+    since_days: int | None = 7,
+    current_date: date | None = None,
+) -> list[dict]:
     """
     Fetch the most recent posts from the authenticated user's Bluesky timeline.
 
@@ -27,6 +31,8 @@ def fetch_feed_posts(limit: int = 100, since_days: int | None = 7) -> list[dict]
         limit: Maximum number of posts to fetch (default: 100)
         since_days: Only fetch posts from the last N days (default: 7).
                    Set to None to disable date filtering.
+        current_date: Reference date for calculating the cutoff (default: None).
+                     If None, uses today's date.
 
     Returns:
         List of post dictionaries from the timeline
@@ -47,11 +53,13 @@ def fetch_feed_posts(limit: int = 100, since_days: int | None = 7) -> list[dict]
         )
 
     # Calculate cutoff date if filtering is enabled
-    cutoff = (
-        datetime.now(timezone.utc) - timedelta(days=since_days)
-        if since_days is not None
-        else None
-    )
+    if since_days is not None:
+        reference_date = current_date if current_date is not None else date.today()
+        # Convert date to datetime at start of day in UTC
+        reference_datetime = datetime.combine(reference_date, datetime.min.time(), tzinfo=timezone.utc)
+        cutoff = reference_datetime - timedelta(days=since_days)
+    else:
+        cutoff = None
 
     # Initialize client and authenticate
     client = Client()

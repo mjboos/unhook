@@ -28,4 +28,4 @@ COPY --from=build /src/dist/*.whl /tmp/
 # Install the package
 RUN uv pip install --system /tmp/*.whl && rm /tmp/*.whl
 
-ENTRYPOINT ["unhook-tanha"]
+ENTRYPOINT ["unhook"]

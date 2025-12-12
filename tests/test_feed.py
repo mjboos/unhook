@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from unhook_tanha.feed import fetch_feed_posts, parse_timestamp
+from unhook.feed import fetch_feed_posts, parse_timestamp
 
 
 @pytest.fixture
@@ -59,7 +59,7 @@ def sample_timeline_response():
 
 def test_fetch_feed_posts_success(mock_env_vars, sample_timeline_response):
     """It fetches posts successfully with mocked client."""
-    with patch("unhook_tanha.feed.Client") as mock_client_class:
+    with patch("unhook.feed.Client") as mock_client_class:
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         mock_client.get_timeline.return_value = sample_timeline_response
@@ -75,7 +75,7 @@ def test_fetch_feed_posts_success(mock_env_vars, sample_timeline_response):
 
 def test_fetch_feed_posts_custom_limit(mock_env_vars, sample_timeline_response):
     """It passes custom limit parameter correctly."""
-    with patch("unhook_tanha.feed.Client") as mock_client_class:
+    with patch("unhook.feed.Client") as mock_client_class:
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         mock_client.get_timeline.return_value = sample_timeline_response
@@ -99,7 +99,7 @@ def test_fetch_feed_posts_missing_credentials(monkeypatch):
 
 def test_fetch_feed_posts_auth_failure(mock_env_vars):
     """It raises exception on authentication failure."""
-    with patch("unhook_tanha.feed.Client") as mock_client_class:
+    with patch("unhook.feed.Client") as mock_client_class:
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         mock_client.login.side_effect = Exception("Authentication failed")
@@ -110,7 +110,7 @@ def test_fetch_feed_posts_auth_failure(mock_env_vars):
 
 def test_fetch_feed_posts_api_error(mock_env_vars):
     """It raises exception on API error."""
-    with patch("unhook_tanha.feed.Client") as mock_client_class:
+    with patch("unhook.feed.Client") as mock_client_class:
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         mock_client.get_timeline.side_effect = Exception("API error")
@@ -153,7 +153,7 @@ def test_fetch_feed_posts_filters_old_posts(mock_env_vars):
         cursor=None,
     )
 
-    with patch("unhook_tanha.feed.Client") as mock_client_class:
+    with patch("unhook.feed.Client") as mock_client_class:
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         mock_client.get_timeline.return_value = old_response
@@ -184,7 +184,7 @@ def test_fetch_feed_posts_no_date_filter(mock_env_vars):
         cursor=None,
     )
 
-    with patch("unhook_tanha.feed.Client") as mock_client_class:
+    with patch("unhook.feed.Client") as mock_client_class:
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         mock_client.get_timeline.return_value = old_response
@@ -223,7 +223,7 @@ def test_fetch_feed_posts_pagination(mock_env_vars):
         cursor=None,
     )
 
-    with patch("unhook_tanha.feed.Client") as mock_client_class:
+    with patch("unhook.feed.Client") as mock_client_class:
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         mock_client.get_timeline.side_effect = [first_response, second_response]

@@ -1,1 +1,1 @@
-"""Test suite for the unhook_tanha package."""
+"""Test suite for the unhook package."""

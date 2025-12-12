@@ -1,7 +1,7 @@
 [project]
-name = "unhook-tanha"
+name = "unhook"
 version = "0.0.0"
-description = "Unhook Tanha"
+description = "Unhook"
 authors = [{name = "Moritz Boos", email = "moritz.boos@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.12"
@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/unhook-tanha"
+Repository = "https://github.com/unhook"
 
 [dependency-groups]
 dev = [
@@ -36,7 +36,7 @@ dev = [
 
 
 [project.scripts]
-unhook-tanha = "unhook_tanha.cmd:app"
+unhook = "unhook.cmd:app"
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
@@ -44,7 +44,7 @@ tests = ["tests", "*/tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["unhook_tanha", "tests"]
+source = ["unhook", "tests"]
 
 [tool.coverage.report]
 show_missing = true

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -42,6 +43,7 @@ async def export_recent_posts_to_epub(
     limit: int = 200,
     hours: int = 24,
     file_prefix: str = "posts",
+    min_length: int = 100,
 ) -> Path:
     """Fetch recent posts, download assets, and build an EPUB file."""
 
@@ -51,7 +53,9 @@ async def export_recent_posts_to_epub(
     raw_posts = fetch_feed_posts(limit=limit, since_days=1)
     recent_posts = _filter_recent_posts(raw_posts, hours=hours)
     unique_posts = dedupe_posts(recent_posts)
-    content_posts: list[PostContent] = map_posts_to_content(unique_posts)
+    content_posts: list[PostContent] = _filter_by_length(
+        map_posts_to_content(unique_posts), min_length=min_length
+    )
 
     image_urls = [url for post in content_posts for url in post.image_urls]
     images = await download_images(image_urls) if image_urls else {}
@@ -85,3 +89,11 @@ def _filter_recent_posts(posts: list[dict], hours: int) -> list[dict]:
             filtered.append(post)
 
     return filtered
+
+
+def _filter_by_length(
+    posts: Iterable[PostContent], min_length: int
+) -> list[PostContent]:
+    """Return posts whose bodies are at least ``min_length`` characters long."""
+
+    return [post for post in posts if len(post.body) >= min_length]

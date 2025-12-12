@@ -61,12 +61,19 @@ def export_epub(
     limit: int = typer.Option(200, help="Maximum number of posts to fetch"),
     hours: int = typer.Option(24, help="Lookback window in hours"),
     file_prefix: str = typer.Option("posts", help="Filename prefix for the EPUB"),
+    min_length: int = typer.Option(
+        100, help="Minimum length (in characters) a post must have to include"
+    ),
 ) -> None:
     """Fetch recent posts and export them as an EPUB file."""
 
     output_path = asyncio.run(
         export_recent_posts_to_epub(
-            output_dir=output_dir, limit=limit, hours=hours, file_prefix=file_prefix
+            output_dir=output_dir,
+            limit=limit,
+            hours=hours,
+            file_prefix=file_prefix,
+            min_length=min_length,
         )
     )
     typer.echo(f"Saved EPUB to {output_path}")

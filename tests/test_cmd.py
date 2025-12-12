@@ -23,12 +23,14 @@ def runner() -> CliRunner:
 def sample_posts():
     """Sample posts data."""
     created_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    long_body_1 = "Test post 1 " + "x" * 110
+    long_body_2 = "Test post 2 " + "y" * 115
     return [
         {
             "post": {
                 "uri": "at://did:plc:test/app.bsky.feed.post/1",
                 "author": {"handle": "user.bsky.social"},
-                "record": {"text": "Test post 1", "created_at": created_at},
+                "record": {"text": long_body_1, "created_at": created_at},
                 "embed": {
                     "images": [
                         {
@@ -43,7 +45,7 @@ def sample_posts():
             "post": {
                 "uri": "at://did:plc:test/app.bsky.feed.post/2",
                 "author": {"handle": "user.bsky.social"},
-                "record": {"text": "Test post 2", "created_at": created_at},
+                "record": {"text": long_body_2, "created_at": created_at},
                 "embed": {
                     "images": [
                         {
@@ -110,8 +112,8 @@ def test_fetch_command_mocked_posts_in_file(runner: CliRunner, sample_posts, tmp
             # Read the file back and verify contents
             df = pd.read_parquet("test.parquet")
             assert len(df) == 2
-            assert df.iloc[0]["post"]["record"]["text"] == "Test post 1"
-            assert df.iloc[1]["post"]["record"]["text"] == "Test post 2"
+            assert df.iloc[0]["post"]["record"]["text"].startswith("Test post 1")
+            assert df.iloc[1]["post"]["record"]["text"].startswith("Test post 2")
 
 
 def test_fetch_writes_actual_file(runner: CliRunner, sample_posts, tmp_path):

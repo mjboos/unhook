@@ -8,7 +8,7 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from unhook_tanha.cmd import app, main
+from unhook.cmd import app, main
 
 
 @pytest.fixture
@@ -48,10 +48,10 @@ def test_main_succeeds(runner: CliRunner) -> None:
 
 def test_fetch_command_default_filename(runner: CliRunner, sample_posts, tmp_path):
     """It saves file with default date-based filename."""
-    with patch("unhook_tanha.cmd.fetch_feed_posts") as mock_fetch:
+    with patch("unhook.cmd.fetch_feed_posts") as mock_fetch:
         mock_fetch.return_value = sample_posts
 
-        with patch("unhook_tanha.cmd.date") as mock_date:
+        with patch("unhook.cmd.date") as mock_date:
             mock_date.today.return_value.isoformat.return_value = "2025-10-06"
 
             # Change to temp directory
@@ -65,7 +65,7 @@ def test_fetch_command_default_filename(runner: CliRunner, sample_posts, tmp_pat
 
 def test_fetch_command_custom_filename(runner: CliRunner, sample_posts, tmp_path):
     """It saves file with custom filename."""
-    with patch("unhook_tanha.cmd.fetch_feed_posts") as mock_fetch:
+    with patch("unhook.cmd.fetch_feed_posts") as mock_fetch:
         mock_fetch.return_value = sample_posts
 
         with runner.isolated_filesystem(temp_dir=tmp_path):
@@ -78,7 +78,7 @@ def test_fetch_command_custom_filename(runner: CliRunner, sample_posts, tmp_path
 
 def test_fetch_command_mocked_posts_in_file(runner: CliRunner, sample_posts, tmp_path):
     """It writes mocked posts data to parquet file correctly."""
-    with patch("unhook_tanha.cmd.fetch_feed_posts") as mock_fetch:
+    with patch("unhook.cmd.fetch_feed_posts") as mock_fetch:
         mock_fetch.return_value = sample_posts
 
         with runner.isolated_filesystem(temp_dir=tmp_path):
@@ -95,7 +95,7 @@ def test_fetch_command_mocked_posts_in_file(runner: CliRunner, sample_posts, tmp
 
 def test_fetch_writes_actual_file(runner: CliRunner, sample_posts, tmp_path):
     """Integration test - verify file is written and readable."""
-    with patch("unhook_tanha.cmd.fetch_feed_posts") as mock_fetch:
+    with patch("unhook.cmd.fetch_feed_posts") as mock_fetch:
         mock_fetch.return_value = sample_posts
 
         with runner.isolated_filesystem(temp_dir=tmp_path):

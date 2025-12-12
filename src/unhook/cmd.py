@@ -6,14 +6,14 @@ from pathlib import Path
 import pandas as pd
 import typer
 
-from unhook_tanha.feed import fetch_feed_posts
+from unhook.feed import fetch_feed_posts
 
 app = typer.Typer()
 
 
 @app.command()
 def main() -> None:
-    """Unhook Tanha."""
+    """Unhook."""
 
 
 @app.command()

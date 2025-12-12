@@ -41,9 +41,22 @@ jobs:
             --since-days "${{ github.event.inputs.since_days }}" \
             --output "${{ github.event.inputs.output }}"
 
+      - name: Export EPUB
+        run: |
+          uv run python -m unhook.cmd export-epub \
+            --limit "${{ github.event.inputs.limit }}" \
+            --file-prefix integration
+
       - name: Upload parquet
         uses: actions/upload-artifact@v4
         with:
           name: bluesky-feed
           path: ${{ github.event.inputs.output }}
+          if-no-files-found: error
+
+      - name: Upload EPUB
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluesky-epub
+          path: exports/*.epub
           if-no-files-found: error

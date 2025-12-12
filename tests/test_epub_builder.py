@@ -29,5 +29,5 @@ def test_epub_builder_creates_chapter_and_image(tmp_path):
     assert len([doc for doc in documents if doc.file_name.startswith("post_")]) == 1
     assert len(images) == 1
     html_bodies = "\n".join(doc.get_content().decode() for doc in documents)
-    assert "Sample Post" in html_bodies
     assert "Hello" in html_bodies
+    assert "tester.bsky.social" in html_bodies

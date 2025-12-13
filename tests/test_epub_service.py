@@ -93,12 +93,16 @@ async def test_export_recent_posts_to_epub_skips_replies(tmp_path, monkeypatch):
         "unhook.epub_service.fetch_feed_posts",
         lambda limit=200, since_days=1: sample_feed,
     )
-    monkeypatch.setattr("unhook.epub_service.download_images", AsyncMock(return_value={}))
+    monkeypatch.setattr(
+        "unhook.epub_service.download_images", AsyncMock(return_value={})
+    )
 
     output_path = await export_recent_posts_to_epub(tmp_path, file_prefix="test")
 
     book = epub.read_epub(output_path)
-    html_docs = [item.get_content().decode() for item in book.get_items_of_type(ITEM_DOCUMENT)]
+    html_docs = [
+        item.get_content().decode() for item in book.get_items_of_type(ITEM_DOCUMENT)
+    ]
     combined_html = "\n".join(html_docs)
 
     assert "Top level post" in combined_html

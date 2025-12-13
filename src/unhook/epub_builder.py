@@ -94,7 +94,7 @@ class EpubBuilder:
         chapter = epub.EpubHtml(
             title=self.title, file_name="post_1.xhtml", lang=self.language
         )
-        chapter.content = "".join(content_sections)
+        chapter.content = "".join(content_sections) or "<p>No posts available.</p>"
 
         book.add_item(chapter)
         book.spine = ["nav", chapter]

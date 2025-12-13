@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import httpx
 
 from unhook.epub_builder import EpubBuilder
-from unhook.feed import fetch_feed_posts, parse_timestamp
+from unhook.feed import (
+    consolidate_threads_to_posts,
+    fetch_feed_posts,
+    find_self_threads,
+)
 from unhook.post_content import PostContent, dedupe_posts, map_posts_to_content
 
 logger = logging.getLogger(__name__)
@@ -41,19 +45,29 @@ async def download_images(urls: list[str]) -> dict[str, bytes]:
 async def export_recent_posts_to_epub(
     output_dir: Path | str,
     limit: int = 200,
-    hours: int = 24,
     file_prefix: str = "posts",
     min_length: int = 100,
 ) -> Path:
-    """Fetch recent posts, download assets, and build an EPUB file."""
+    """Fetch posts, download assets, and build an EPUB file."""
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    raw_posts = fetch_feed_posts(limit=limit, since_days=1)
-    recent_posts = _filter_recent_posts(raw_posts, hours=hours)
-    top_level_posts = _filter_top_level_posts(recent_posts)
-    unique_posts = dedupe_posts(top_level_posts)
+    raw_posts = fetch_feed_posts(limit=limit)
+    top_level_posts = _filter_top_level_posts(raw_posts)
+
+    threads = find_self_threads(raw_posts)
+    consolidated_threads = consolidate_threads_to_posts(threads)
+    root_thread_uris = {thread[0].get("post", {}).get("uri") for thread in threads}
+
+    merged_posts = [
+        post
+        for post in top_level_posts
+        if post.get("post", {}).get("uri") not in root_thread_uris
+    ]
+    merged_posts.extend(consolidated_threads)
+
+    unique_posts = dedupe_posts(merged_posts)
     content_posts: list[PostContent] = _filter_by_length(
         map_posts_to_content(unique_posts), min_length=min_length
     )
@@ -64,7 +78,7 @@ async def export_recent_posts_to_epub(
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     output_path = output_dir / f"{file_prefix}-{timestamp}.epub"
 
-    builder = EpubBuilder(title=f"Recent posts ({hours}h)")
+    builder = EpubBuilder(title="Recent posts")
     builder.build(content_posts, images, output_path)
 
     logger.info("EPUB created at %s", output_path)
@@ -72,24 +86,6 @@ async def export_recent_posts_to_epub(
 
 
 __all__ = ["export_recent_posts_to_epub", "download_images"]
-
-
-def _filter_recent_posts(posts: list[dict], hours: int) -> list[dict]:
-    """Keep only posts created within the last ``hours`` relative to now."""
-
-    cutoff = datetime.now(UTC) - timedelta(hours=hours)
-    filtered: list[dict] = []
-
-    for post in posts:
-        created_at = post.get("post", {}).get("record", {}).get("created_at")
-        if not created_at:
-            continue
-
-        parsed = parse_timestamp(created_at)
-        if parsed >= cutoff:
-            filtered.append(post)
-
-    return filtered
 
 
 def _filter_top_level_posts(posts: Iterable[dict]) -> list[dict]:

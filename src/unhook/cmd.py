@@ -59,7 +59,6 @@ def fetch(
 def export_epub(
     output_dir: Path = typer.Option(Path("exports"), help="Directory to save EPUBs"),
     limit: int = typer.Option(200, help="Maximum number of posts to fetch"),
-    hours: int = typer.Option(24, help="Lookback window in hours"),
     file_prefix: str = typer.Option("posts", help="Filename prefix for the EPUB"),
     min_length: int = typer.Option(
         100, help="Minimum length (in characters) a post must have to include"
@@ -71,7 +70,6 @@ def export_epub(
         export_recent_posts_to_epub(
             output_dir=output_dir,
             limit=limit,
-            hours=hours,
             file_prefix=file_prefix,
             min_length=min_length,
         )

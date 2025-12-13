@@ -50,7 +50,7 @@ jobs:
           server_port: 587
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.GAPPPWD }}
-          secure: true
+          secure: false
           subject: "Bluesky feed EPUB"
           to: ${{ secrets.AMAZON_KINDLE_ADDRESS }}
           from: "Github actions <${{ secrets.SMTP_USERNAME }}>"

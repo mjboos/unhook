@@ -25,3 +25,6 @@ You can install _Unhook_ via [uv].
 $ pipx install uv
 $ uv sync
 ```
+
+## Notes on Bluesky self-thread detection
+See `docs/self_thread_research.md` for details on how reply metadata appears in Bluesky feed items and how that affects self-thread extraction from the fetched timeline.

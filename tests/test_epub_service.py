@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
+from ebooklib import ITEM_DOCUMENT, epub
 
 from unhook.epub_service import download_images, export_recent_posts_to_epub
 
@@ -50,3 +51,55 @@ async def test_export_recent_posts_to_epub(tmp_path, monkeypatch):
 
     assert Path(output_path).exists()
     assert Path(output_path).suffix == ".epub"
+
+
+@pytest.mark.asyncio
+async def test_export_recent_posts_to_epub_skips_replies(tmp_path, monkeypatch):
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    long_body = "Top level post " + "x" * 120
+    reply_body = "Reply body " + "y" * 120
+
+    sample_feed = [
+        {
+            "post": {
+                "uri": "at://did:plc:test/app.bsky.feed.post/1",
+                "author": {"handle": "user.bsky.social"},
+                "record": {"text": long_body, "created_at": now},
+            }
+        },
+        {
+            "post": {
+                "uri": "at://did:plc:test/app.bsky.feed.post/2",
+                "author": {"handle": "user.bsky.social"},
+                "record": {
+                    "text": reply_body,
+                    "created_at": now,
+                    "reply": {
+                        "root": {
+                            "uri": "at://did:plc:test/app.bsky.feed.post/1",
+                            "cid": "rootcid",
+                        },
+                        "parent": {
+                            "uri": "at://did:plc:test/app.bsky.feed.post/1",
+                            "cid": "rootcid",
+                        },
+                    },
+                },
+            }
+        },
+    ]
+
+    monkeypatch.setattr(
+        "unhook.epub_service.fetch_feed_posts",
+        lambda limit=200, since_days=1: sample_feed,
+    )
+    monkeypatch.setattr("unhook.epub_service.download_images", AsyncMock(return_value={}))
+
+    output_path = await export_recent_posts_to_epub(tmp_path, file_prefix="test")
+
+    book = epub.read_epub(output_path)
+    html_docs = [item.get_content().decode() for item in book.get_items_of_type(ITEM_DOCUMENT)]
+    combined_html = "\n".join(html_docs)
+
+    assert "Top level post" in combined_html
+    assert "Reply body" not in combined_html

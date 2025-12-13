@@ -1,0 +1,67 @@
+name: Send EPUB to Kindle
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum number of posts to fetch"
+        required: false
+        default: "100"
+      since_days:
+        description: "Days of history to include"
+        required: false
+        default: "7"
+
+jobs:
+  fetch-and-send:
+    runs-on: ubuntu-latest
+    env:
+      BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+      BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Fetch Bluesky feed
+        run: |
+          uv run python -m unhook.cmd fetch \
+            --limit "${{ github.event.inputs.limit }}" \
+            --since-days "${{ github.event.inputs.since_days }}" \
+            --output "kindle_feed.parquet"
+
+      - name: Export EPUB
+        run: |
+          uv run python -m unhook.cmd export-epub \
+            --limit "${{ github.event.inputs.limit }}" \
+            --file-prefix kindle
+
+      - name: Send EPUB via email
+        uses: dawidd6/action-send-mail@v5
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.GAPPPWD }}
+          secure: true
+          subject: "Bluesky feed EPUB"
+          to: ${{ secrets.AMAZON_KINDLE_ADDRESS }}
+          from: "Github actions <${{ secrets.SMTP_USERNAME }}>"
+          body: "Automated EPUB export from integration run."
+          attachments: "exports/*.epub"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindle-artifacts
+          path: |
+            kindle_feed.parquet
+            exports/*.epub
+          if-no-files-found: error

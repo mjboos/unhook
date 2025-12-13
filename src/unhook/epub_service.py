@@ -52,7 +52,8 @@ async def export_recent_posts_to_epub(
 
     raw_posts = fetch_feed_posts(limit=limit, since_days=1)
     recent_posts = _filter_recent_posts(raw_posts, hours=hours)
-    unique_posts = dedupe_posts(recent_posts)
+    top_level_posts = _filter_top_level_posts(recent_posts)
+    unique_posts = dedupe_posts(top_level_posts)
     content_posts: list[PostContent] = _filter_by_length(
         map_posts_to_content(unique_posts), min_length=min_length
     )
@@ -87,6 +88,21 @@ def _filter_recent_posts(posts: list[dict], hours: int) -> list[dict]:
         parsed = parse_timestamp(created_at)
         if parsed >= cutoff:
             filtered.append(post)
+
+    return filtered
+
+
+def _filter_top_level_posts(posts: Iterable[dict]) -> list[dict]:
+    """Exclude reply posts and keep only top-level entries."""
+
+    filtered: list[dict] = []
+
+    for post in posts:
+        record = post.get("post", {}).get("record", {})
+        if record.get("reply") is not None:
+            continue
+
+        filtered.append(post)
 
     return filtered
 

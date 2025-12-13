@@ -10,7 +10,12 @@ from pathlib import Path
 import httpx
 
 from unhook.epub_builder import EpubBuilder
-from unhook.feed import fetch_feed_posts, parse_timestamp
+from unhook.feed import (
+    consolidate_threads_to_posts,
+    fetch_feed_posts,
+    find_self_threads,
+    parse_timestamp,
+)
 from unhook.post_content import PostContent, dedupe_posts, map_posts_to_content
 
 logger = logging.getLogger(__name__)
@@ -53,7 +58,19 @@ async def export_recent_posts_to_epub(
     raw_posts = fetch_feed_posts(limit=limit, since_days=1)
     recent_posts = _filter_recent_posts(raw_posts, hours=hours)
     top_level_posts = _filter_top_level_posts(recent_posts)
-    unique_posts = dedupe_posts(top_level_posts)
+
+    threads = find_self_threads(recent_posts)
+    consolidated_threads = consolidate_threads_to_posts(threads)
+    root_thread_uris = {thread[0].get("post", {}).get("uri") for thread in threads}
+
+    merged_posts = [
+        post
+        for post in top_level_posts
+        if post.get("post", {}).get("uri") not in root_thread_uris
+    ]
+    merged_posts.extend(consolidated_threads)
+
+    unique_posts = dedupe_posts(merged_posts)
     content_posts: list[PostContent] = _filter_by_length(
         map_posts_to_content(unique_posts), min_length=min_length
     )

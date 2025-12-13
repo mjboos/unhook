@@ -5,7 +5,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from unhook.feed import fetch_feed_posts, parse_timestamp
+from unhook.feed import (
+    consolidate_threads_to_posts,
+    fetch_feed_posts,
+    find_self_threads,
+    parse_timestamp,
+)
 
 
 @pytest.fixture
@@ -33,6 +38,32 @@ def make_post_mock(post_id: int, text: str, created_at: str):
             }
         }
     )
+
+
+def make_post(
+    uri: str,
+    author: str,
+    text: str,
+    parent_uri: str | None = None,
+    images: list[str] | None = None,
+):
+    """Create a minimal post dictionary for threading tests."""
+
+    record: dict = {"text": text, "created_at": "2025-01-01T00:00:00Z"}
+    if parent_uri:
+        record["reply"] = {"parent": {"uri": parent_uri}}
+
+    embed = {"images": [{"fullsize": url} for url in images]} if images else {}
+
+    return {
+        "post": {
+            "uri": uri,
+            "cid": f"cid-{uri.split('/')[-1]}",
+            "author": {"did": author, "handle": f"{author}.bsky.social"},
+            "record": record,
+            "embed": embed,
+        }
+    }
 
 
 @pytest.fixture
@@ -232,3 +263,76 @@ def test_fetch_feed_posts_pagination(mock_env_vars):
         # Should return posts from both pages
         assert len(result) == 2
         assert mock_client.get_timeline.call_count == 2
+
+
+def test_find_self_threads_simple_chain():
+    """It groups replies from the same author into an ordered chain."""
+
+    root = make_post("at://root", "did:author:1", "First")
+    reply = make_post("at://reply", "did:author:1", "Second", parent_uri="at://root")
+
+    threads = find_self_threads([root, reply])
+
+    assert len(threads) == 1
+    uris = [post["post"]["uri"] for post in threads[0]]
+    assert uris == ["at://root", "at://reply"]
+
+    consolidated = consolidate_threads_to_posts(threads)
+    assert consolidated[0]["post"]["record"]["text"] == "First\n\nSecond"
+
+
+def test_find_self_threads_handles_branches():
+    """It produces separate chains when replies branch from the same root."""
+
+    root = make_post("at://root", "did:author:1", "Start")
+    mid = make_post("at://mid", "did:author:1", "Middle", parent_uri="at://root")
+    tail = make_post("at://tail", "did:author:1", "Tail", parent_uri="at://mid")
+    sibling = make_post(
+        "at://sibling", "did:author:1", "Sibling", parent_uri="at://root"
+    )
+
+    threads = find_self_threads([root, mid, tail, sibling])
+    assert len(threads) == 2
+
+    thread_uris = {tuple(post["post"]["uri"] for post in thread) for thread in threads}
+    assert {
+        ("at://root", "at://mid", "at://tail"),
+        ("at://root", "at://sibling"),
+    } == thread_uris
+
+
+def test_find_self_threads_ignores_mixed_authors():
+    """It ignores replies from different authors when building chains."""
+
+    root = make_post("at://root", "did:author:1", "First")
+    foreign_reply = make_post(
+        "at://foreign", "did:author:2", "Not mine", parent_uri="at://root"
+    )
+
+    threads = find_self_threads([root, foreign_reply])
+
+    assert threads == []
+
+
+def test_consolidate_threads_collects_images():
+    """It carries over images from all posts in a thread."""
+
+    root = make_post(
+        "at://root", "did:author:1", "First", images=["https://example.com/1.jpg"]
+    )
+    reply = make_post(
+        "at://reply",
+        "did:author:1",
+        "Second",
+        parent_uri="at://root",
+        images=["https://example.com/2.jpg"],
+    )
+
+    consolidated = consolidate_threads_to_posts([[root, reply]])
+    images = consolidated[0]["post"].get("embed", {}).get("images", [])
+
+    assert len(images) == 2
+    assert {img["fullsize"] for img in images} == {
+        "https://example.com/1.jpg",
+        "https://example.com/2.jpg",
+    }

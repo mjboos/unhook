@@ -54,7 +54,9 @@ async def test_export_recent_posts_to_epub(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_export_recent_posts_to_epub_skips_replies(tmp_path, monkeypatch):
+async def test_export_recent_posts_to_epub_consolidates_self_thread(
+    tmp_path, monkeypatch
+):
     now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     long_body = "Top level post " + "x" * 120
     reply_body = "Reply body " + "y" * 120
@@ -106,4 +108,7 @@ async def test_export_recent_posts_to_epub_skips_replies(tmp_path, monkeypatch):
     combined_html = "\n".join(html_docs)
 
     assert "Top level post" in combined_html
-    assert "Reply body" not in combined_html
+    assert "Reply body" in combined_html
+
+    content_docs = [doc for doc in html_docs if "Top level post" in doc]
+    assert len(content_docs) == 1

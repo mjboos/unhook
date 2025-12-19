@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import logging
 import mimetypes
-from io import BytesIO
 from collections.abc import Iterable
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 
 import httpx
@@ -21,8 +21,8 @@ from unhook.feed import (
 from unhook.post_content import PostContent, dedupe_posts, map_posts_to_content
 
 logger = logging.getLogger(__name__)
-MAX_IMAGE_DIMENSION = 1600
-JPEG_QUALITY = 75
+MAX_IMAGE_DIMENSION = 1200
+JPEG_QUALITY = 65
 
 
 async def _download_image(client: httpx.AsyncClient, url: str) -> bytes | None:

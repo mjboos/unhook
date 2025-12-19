@@ -27,6 +27,12 @@ def fetch(
     output: str = typer.Option(
         None, help="Output filename (default: YYYY-MM-DD.parquet)"
     ),
+    feed: str = typer.Option(
+        "timeline",
+        help=(
+            "Source feed to fetch (timeline for home feed, author for only your posts)"
+        ),
+    ),
 ) -> None:
     """
     Fetch recent posts from your Bluesky timeline and save to parquet.
@@ -38,7 +44,9 @@ def fetch(
     """
     # Fetch posts (convert 0 to None to disable date filtering)
     posts = fetch_feed_posts(
-        limit=limit, since_days=since_days if since_days > 0 else None
+        limit=limit,
+        since_days=since_days if since_days > 0 else None,
+        feed=feed,
     )
 
     # Convert to DataFrame

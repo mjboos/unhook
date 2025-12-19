@@ -265,6 +265,22 @@ def test_fetch_feed_posts_pagination(mock_env_vars):
         assert mock_client.get_timeline.call_count == 2
 
 
+def test_fetch_feed_posts_author_feed(mock_env_vars, sample_timeline_response):
+    """It can request the author feed explicitly."""
+    with patch("unhook.feed.Client") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_author_feed.return_value = sample_timeline_response
+
+        fetch_feed_posts(limit=25, feed="author")
+
+        mock_client.get_author_feed.assert_called_once_with(
+            actor="test.bsky.social",
+            limit=25,
+            cursor=None,
+        )
+
+
 def test_find_self_threads_simple_chain():
     """It groups replies from the same author into an ordered chain."""
 

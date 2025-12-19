@@ -53,7 +53,7 @@ async def export_recent_posts_to_epub(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    raw_posts = fetch_feed_posts(limit=limit)
+    raw_posts = _filter_reposts(fetch_feed_posts(limit=limit))
     top_level_posts = _filter_top_level_posts(raw_posts)
 
     threads = find_self_threads(raw_posts)
@@ -95,12 +95,31 @@ def _filter_top_level_posts(posts: Iterable[dict]) -> list[dict]:
 
     for post in posts:
         record = post.get("post", {}).get("record", {})
+        if _is_repost(post):
+            continue
         if record.get("reply") is not None:
             continue
 
         filtered.append(post)
 
     return filtered
+
+
+def _filter_reposts(posts: Iterable[dict]) -> list[dict]:
+    """Return posts excluding entries that are pure reposts."""
+
+    return [post for post in posts if not _is_repost(post)]
+
+
+def _is_repost(post: dict) -> bool:
+    """Return ``True`` when a feed item is a repost/retweet equivalent."""
+
+    reason = post.get("reason")
+    if not isinstance(reason, dict):
+        return False
+
+    reason_type = reason.get("$type") or ""
+    return "reasonRepost" in reason_type
 
 
 def _filter_by_length(

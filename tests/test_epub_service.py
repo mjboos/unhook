@@ -112,3 +112,45 @@ async def test_export_recent_posts_to_epub_consolidates_self_thread(
 
     content_docs = [doc for doc in html_docs if "Top level post" in doc]
     assert len(content_docs) == 1
+
+
+@pytest.mark.asyncio
+async def test_export_recent_posts_to_epub_ignores_reposts(tmp_path, monkeypatch):
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+    sample_feed = [
+        {
+            "post": {
+                "uri": "at://did:plc:test/app.bsky.feed.post/1",
+                "author": {"handle": "user.bsky.social"},
+                "record": {"text": "Original content" * 10, "created_at": now},
+            }
+        },
+        {
+            "post": {
+                "uri": "at://did:plc:test/app.bsky.feed.post/2",
+                "author": {"handle": "other.bsky.social"},
+                "record": {"text": "Repost only body" * 10, "created_at": now},
+            },
+            "reason": {"$type": "app.bsky.feed.defs#reasonRepost"},
+        },
+    ]
+
+    monkeypatch.setattr(
+        "unhook.epub_service.fetch_feed_posts",
+        lambda limit=200, since_days=1: sample_feed,
+    )
+    monkeypatch.setattr("unhook.epub_service.download_images", AsyncMock(return_value={}))
+
+    output_path = await export_recent_posts_to_epub(
+        tmp_path, file_prefix="test", min_length=0
+    )
+
+    book = epub.read_epub(output_path)
+    html_docs = [
+        item.get_content().decode() for item in book.get_items_of_type(ITEM_DOCUMENT)
+    ]
+    combined_html = "\n".join(html_docs)
+
+    assert "Original content" in combined_html
+    assert "Repost only body" not in combined_html

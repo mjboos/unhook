@@ -161,6 +161,7 @@ def fetch_feed_posts(
     limit: int = 100,
     since_days: int | None = 7,
     current_date: date | None = None,
+    feed: str = "timeline",
 ) -> list[dict]:
     """
     Fetch the most recent posts from the authenticated user's Bluesky timeline.
@@ -171,6 +172,8 @@ def fetch_feed_posts(
                    Set to None to disable date filtering.
         current_date: Reference date for calculating the cutoff (default: None).
                      If None, uses today's date.
+        feed: Which feed to request ("timeline" for home feed, "author" for only your
+            posts).
 
     Returns:
         List of post dictionaries from the timeline
@@ -201,6 +204,9 @@ def fetch_feed_posts(
     else:
         cutoff = None
 
+    if feed not in {"author", "timeline"}:
+        raise ValueError('feed must be "author" or "timeline"')
+
     # Initialize client and authenticate
     client = Client()
     client.login(handle, password)
@@ -211,11 +217,17 @@ def fetch_feed_posts(
     while len(all_posts) < limit:
         # Fetch a batch of posts (max 100 per request)
         batch_size = min(100, limit - len(all_posts))
-        response = client.get_timeline(limit=batch_size, cursor=cursor)
+        if feed == "timeline":
+            response = client.get_timeline(limit=batch_size, cursor=cursor)
+        else:
+            response = client.get_author_feed(
+                actor=handle, limit=batch_size, cursor=cursor
+            )
 
         if not response.feed:
             break
 
+        page_has_recent = False
         for item in response.feed:
             post_dict = item.model_dump()
 
@@ -227,13 +239,16 @@ def fetch_feed_posts(
                 if created_at_str:
                     created_at = parse_timestamp(created_at_str)
                     if created_at < cutoff:
-                        # Stop fetching - we've gone past the date limit
-                        return all_posts
+                        continue
 
+            page_has_recent = True
             all_posts.append(post_dict)
 
             if len(all_posts) >= limit:
                 break
+
+        if cutoff is not None and not page_has_recent:
+            break
 
         # Get cursor for next page
         cursor = response.cursor

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 from collections.abc import Iterable
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 
 import httpx
+from PIL import Image, UnidentifiedImageError
 
 from unhook.epub_builder import EpubBuilder
 from unhook.feed import (
@@ -18,6 +21,8 @@ from unhook.feed import (
 from unhook.post_content import PostContent, dedupe_posts, map_posts_to_content
 
 logger = logging.getLogger(__name__)
+MAX_IMAGE_DIMENSION = 1200
+JPEG_QUALITY = 65
 
 
 async def _download_image(client: httpx.AsyncClient, url: str) -> bytes | None:
@@ -30,6 +35,42 @@ async def _download_image(client: httpx.AsyncClient, url: str) -> bytes | None:
         return None
 
 
+def _compress_image(content: bytes, media_type: str | None) -> bytes:
+    try:
+        with Image.open(BytesIO(content)) as image:
+            image.load()
+            if image.width > MAX_IMAGE_DIMENSION or image.height > MAX_IMAGE_DIMENSION:
+                image.thumbnail((MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION))
+
+            output = BytesIO()
+            image_format = (image.format or "").upper()
+
+            if media_type == "image/jpeg" or image_format in {"JPEG", "JPG"}:
+                image.convert("RGB").save(
+                    output, format="JPEG", quality=JPEG_QUALITY, optimize=True
+                )
+                return output.getvalue()
+
+            if media_type == "image/png" or image_format == "PNG":
+                if image.mode in {"RGBA", "LA"} or "transparency" in image.info:
+                    image.save(output, format="PNG", optimize=True)
+                else:
+                    image.convert("RGB").save(
+                        output, format="JPEG", quality=JPEG_QUALITY, optimize=True
+                    )
+                return output.getvalue()
+
+            if media_type == "image/webp" or image_format == "WEBP":
+                image.save(output, format="WEBP", quality=JPEG_QUALITY, method=6)
+                return output.getvalue()
+    except (UnidentifiedImageError, OSError) as exc:  # pragma: no cover - logging only
+        logger.warning("Failed to compress image: %s", exc)
+    except Exception as exc:  # pragma: no cover - logging only
+        logger.warning("Unexpected error compressing image: %s", exc)
+
+    return content
+
+
 async def download_images(urls: list[str]) -> dict[str, bytes]:
     """Download images concurrently and return mapping of URL to bytes."""
 
@@ -38,7 +79,8 @@ async def download_images(urls: list[str]) -> dict[str, bytes]:
         for url in {u for u in urls if u}:
             content = await _download_image(client, url)
             if content:
-                results[url] = content
+                media_type, _ = mimetypes.guess_type(url)
+                results[url] = _compress_image(content, media_type)
     return results
 
 

@@ -134,13 +134,26 @@ async def test_export_recent_posts_to_epub_ignores_reposts(tmp_path, monkeypatch
             },
             "reason": {"$type": "app.bsky.feed.defs#reasonRepost"},
         },
+        {
+            "post": {
+                "uri": "at://did:plc:test/app.bsky.feed.post/3",
+                "author": {"handle": "quote.bsky.social"},
+                "record": {
+                    "$type": "app.bsky.feed.repost",
+                    "text": "Record repost body" * 10,
+                    "created_at": now,
+                },
+            }
+        },
     ]
 
     monkeypatch.setattr(
         "unhook.epub_service.fetch_feed_posts",
         lambda limit=200, since_days=1: sample_feed,
     )
-    monkeypatch.setattr("unhook.epub_service.download_images", AsyncMock(return_value={}))
+    monkeypatch.setattr(
+        "unhook.epub_service.download_images", AsyncMock(return_value={})
+    )
 
     output_path = await export_recent_posts_to_epub(
         tmp_path, file_prefix="test", min_length=0
@@ -154,3 +167,4 @@ async def test_export_recent_posts_to_epub_ignores_reposts(tmp_path, monkeypatch
 
     assert "Original content" in combined_html
     assert "Repost only body" not in combined_html
+    assert "Record repost body" not in combined_html

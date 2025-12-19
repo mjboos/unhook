@@ -116,10 +116,18 @@ def _is_repost(post: dict) -> bool:
 
     reason = post.get("reason")
     if not isinstance(reason, dict):
-        return False
+        reason = {}
 
     reason_type = reason.get("$type") or ""
-    return "reasonRepost" in reason_type
+    if "reasonRepost" in reason_type:
+        return True
+
+    record = post.get("post", {}).get("record", {})
+    if not isinstance(record, dict):
+        return False
+
+    record_type = record.get("$type") or ""
+    return record_type == "app.bsky.feed.repost"
 
 
 def _filter_by_length(

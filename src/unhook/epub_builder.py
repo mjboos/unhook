@@ -31,6 +31,7 @@ def _escape_hashtags(text: str) -> str:
     # Replace #word at line start with \#word to escape the heading syntax
     return _HASHTAG_LINE_START.sub(r"\\\1\2", text)
 
+
 ALLOWED_TAGS = list(bleach.sanitizer.ALLOWED_TAGS) + [
     "p",
     "img",

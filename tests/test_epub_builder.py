@@ -93,7 +93,12 @@ def test_epub_builder_escapes_hashtags(tmp_path):
     html_content = "\n".join(doc.get_content().decode() for doc in documents)
 
     # Hashtags should NOT be converted to headings
-    assert "<h1>" not in html_content or "BlueskyDev" not in html_content.split("<h1>")[1].split("</h1>")[0] if "<h1>" in html_content else True
+    assert (
+        "<h1>" not in html_content
+        or "BlueskyDev" not in html_content.split("<h1>")[1].split("</h1>")[0]
+        if "<h1>" in html_content
+        else True
+    )
     # The hashtag text should still appear in the content
     assert "BlueskyDev" in html_content
     assert "python" in html_content

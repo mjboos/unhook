@@ -89,30 +89,66 @@ async def export_recent_posts_to_epub(
     limit: int = 200,
     file_prefix: str = "posts",
     min_length: int = 100,
+    repost_min_length: int = 300,
 ) -> Path:
     """Fetch posts, download assets, and build an EPUB file."""
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    raw_posts = _filter_reposts(fetch_feed_posts(limit=limit))
-    top_level_posts = _filter_top_level_posts(raw_posts)
+    all_posts = fetch_feed_posts(limit=limit)
 
-    threads = find_self_threads(raw_posts)
-    consolidated_threads = consolidate_threads_to_posts(threads)
-    root_thread_uris = {thread[0].get("post", {}).get("uri") for thread in threads}
+    # Split into native posts and reposts
+    native_posts = [p for p in all_posts if not _is_repost(p)]
+    reposts = [p for p in all_posts if _is_repost(p)]
 
-    merged_posts = [
+    # Process native posts: filter top-level and find threads
+    top_level_native = _filter_top_level_posts(native_posts)
+    native_threads = find_self_threads(native_posts)
+    consolidated_native = consolidate_threads_to_posts(native_threads)
+    native_thread_roots = {
+        thread[0].get("post", {}).get("uri") for thread in native_threads
+    }
+
+    merged_native = [
         post
-        for post in top_level_posts
-        if post.get("post", {}).get("uri") not in root_thread_uris
+        for post in top_level_native
+        if post.get("post", {}).get("uri") not in native_thread_roots
     ]
-    merged_posts.extend(consolidated_threads)
+    merged_native.extend(consolidated_native)
 
-    unique_posts = dedupe_posts(merged_posts)
-    content_posts: list[PostContent] = _filter_by_length(
-        map_posts_to_content(unique_posts), min_length=min_length
+    # Process reposts: find threads among reposted content
+    repost_threads = find_self_threads(reposts)
+    consolidated_reposts = consolidate_threads_to_posts(repost_threads)
+    repost_thread_roots = {
+        thread[0].get("post", {}).get("uri") for thread in repost_threads
+    }
+
+    # Get standalone reposts (not part of threads) - only top-level posts
+    standalone_reposts = [
+        post
+        for post in reposts
+        if post.get("post", {}).get("uri") not in repost_thread_roots
+        and post.get("post", {}).get("record", {}).get("reply") is None
+    ]
+
+    # Build repost info mapping (URI -> reposter handle)
+    repost_info = _build_repost_info(reposts)
+
+    # Convert to content
+    native_content = _filter_by_length(
+        map_posts_to_content(dedupe_posts(merged_native)), min_length=min_length
     )
+
+    # For reposts (standalone + consolidated threads)
+    all_repost_posts = standalone_reposts + consolidated_reposts
+    repost_content = _filter_by_length(
+        _map_reposts_to_content(dedupe_posts(all_repost_posts), repost_info),
+        min_length=repost_min_length,
+    )
+
+    # Merge and sort by published date
+    content_posts = native_content + repost_content
     content_posts = sorted(content_posts, key=lambda post: post.published, reverse=True)
 
     image_urls = [url for post in content_posts for url in post.image_urls]
@@ -154,6 +190,11 @@ def _filter_reposts(posts: Iterable[dict]) -> list[dict]:
     return [post for post in posts if not _is_repost(post)]
 
 
+def _get_type_field(obj: dict) -> str:
+    """Return the $type or py_type field from an object."""
+    return obj.get("$type") or obj.get("py_type") or ""
+
+
 def _is_repost(post: dict) -> bool:
     """Return ``True`` when a feed item is a repost/retweet equivalent."""
 
@@ -161,7 +202,7 @@ def _is_repost(post: dict) -> bool:
     if not isinstance(reason, dict):
         reason = {}
 
-    reason_type = reason.get("$type") or ""
+    reason_type = _get_type_field(reason)
     if "reasonRepost" in reason_type:
         return True
 
@@ -169,7 +210,7 @@ def _is_repost(post: dict) -> bool:
     if not isinstance(record, dict):
         return False
 
-    record_type = record.get("$type") or ""
+    record_type = _get_type_field(record)
     return record_type == "app.bsky.feed.repost"
 
 
@@ -179,3 +220,53 @@ def _filter_by_length(
     """Return posts whose bodies are at least ``min_length`` characters long."""
 
     return [post for post in posts if len(post.body) >= min_length]
+
+
+def _get_reposter_handle(post: dict) -> str | None:
+    """Extract the handle of the user who reposted this content."""
+
+    reason = post.get("reason")
+    if not isinstance(reason, dict):
+        return None
+
+    by = reason.get("by")
+    if not isinstance(by, dict):
+        return None
+
+    return by.get("handle") or by.get("did")
+
+
+def _build_repost_info(reposts: list[dict]) -> dict[str, str]:
+    """Build a mapping from post URI to reposter handle."""
+
+    info: dict[str, str] = {}
+    for post in reposts:
+        uri = post.get("post", {}).get("uri")
+        reposter = _get_reposter_handle(post)
+        if uri and reposter:
+            info[uri] = reposter
+    return info
+
+
+def _map_reposts_to_content(
+    posts: Iterable[dict], repost_info: dict[str, str]
+) -> list[PostContent]:
+    """Convert repost feed responses into PostContent with reposted_by set."""
+
+    from unhook.post_content import map_posts_to_content
+
+    content_list = map_posts_to_content(posts)
+
+    # Match content back to repost info using URI patterns
+    posts_list = list(posts)
+    for idx, content in enumerate(content_list):
+        if idx < len(posts_list):
+            post = posts_list[idx]
+            uri = post.get("post", {}).get("uri", "")
+            # For consolidated threads, URI ends with #thread
+            base_uri = uri.replace("#thread", "") if uri.endswith("#thread") else uri
+            reposter = repost_info.get(uri) or repost_info.get(base_uri)
+            if reposter:
+                content.reposted_by = reposter
+
+    return content_list

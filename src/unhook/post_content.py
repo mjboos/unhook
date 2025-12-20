@@ -18,6 +18,7 @@ class PostContent:
     published: datetime
     body: str
     image_urls: list[str]
+    reposted_by: str | None = None
 
 
 def dedupe_posts(posts: Iterable[dict]) -> list[dict]:

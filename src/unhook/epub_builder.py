@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+import re
 from pathlib import Path
 
 import bleach
@@ -13,6 +14,23 @@ from ebooklib import epub
 from unhook.post_content import PostContent
 
 logger = logging.getLogger(__name__)
+
+# Regex to match hashtags at the start of a line (e.g., #python, #BlueskyDev)
+# This prevents markdown from interpreting them as headings
+_HASHTAG_LINE_START = re.compile(r"^(#+)(\w)", re.MULTILINE)
+
+
+def _escape_hashtags(text: str) -> str:
+    """Escape hashtags at line start to prevent markdown heading conversion.
+
+    In Markdown, lines starting with # become headings. This escapes hashtags
+    (e.g., #python) by adding a backslash so they render as literal text.
+    """
+    if not text:
+        return text
+    # Replace #word at line start with \#word to escape the heading syntax
+    return _HASHTAG_LINE_START.sub(r"\\\1\2", text)
+
 
 ALLOWED_TAGS = list(bleach.sanitizer.ALLOWED_TAGS) + [
     "p",
@@ -28,8 +46,10 @@ ALLOWED_ATTRIBUTES = {"img": ["src", "alt"], "a": ["href", "title", "rel"]}
 
 def _sanitize_content(text: str) -> str:
     """Convert markdown to HTML and sanitize."""
-
-    rendered = markdown2.markdown(text or "")
+    # Escape hashtags at line start before markdown conversion to prevent
+    # them from being interpreted as headings
+    escaped = _escape_hashtags(text or "")
+    rendered = markdown2.markdown(escaped)
     return bleach.clean(rendered, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
 
 

@@ -45,6 +45,12 @@ def map_posts_to_content(posts: Iterable[dict]) -> list[PostContent]:
         record = post_data.get("record", {})
 
         body = record.get("text", "").strip()
+        quote_author, quote_text = _extract_quote_content(post_data)
+        if quote_text:
+            label = quote_author or "quoted post"
+            quoted_section = f"Quoted from {label}:\n{quote_text}"
+            body = f"{body}\n\n{quoted_section}" if body else quoted_section
+
         created_at_str = record.get("created_at")
         published = (
             parse_timestamp(created_at_str) if created_at_str else datetime.now(UTC)
@@ -81,6 +87,63 @@ def _extract_image_urls(post_data: dict) -> list[str]:
         return urls
 
     return []
+
+
+def _extract_quote_content(post_data: dict) -> tuple[str | None, str | None]:
+    """Return the author handle/DID and text of a quoted post, if present."""
+
+    embed = post_data.get("embed") or {}
+    if not isinstance(embed, dict):
+        return None, None
+
+    record_view = _extract_record_view(embed)
+
+    if not isinstance(record_view, dict):
+        return None, None
+
+    if record_view.get("$type") in {
+        "app.bsky.embed.record#viewBlocked",
+        "app.bsky.embed.record#viewNotFound",
+        "app.bsky.embed.record#viewDetached",
+    }:
+        return None, None
+
+    author = (
+        record_view.get("author") if isinstance(record_view.get("author"), dict) else {}
+    )
+    value = (
+        record_view.get("value") if isinstance(record_view.get("value"), dict) else {}
+    )
+
+    author_identifier = author.get("handle") or author.get("did")
+    quoted_text = value.get("text") if isinstance(value.get("text"), str) else None
+
+    return author_identifier, quoted_text
+
+
+def _extract_record_view(embed: dict) -> dict | None:
+    """Return the nested record view for quoted posts."""
+
+    record = embed.get("record")
+    if not isinstance(record, dict):
+        return None
+
+    if _is_view_record(record):
+        return record
+
+    nested = record.get("record")
+    if isinstance(nested, dict) and _is_view_record(nested):
+        return nested
+
+    return None
+
+
+def _is_view_record(candidate: dict) -> bool:
+    """Return whether the candidate looks like a quoted record view."""
+
+    return isinstance(candidate.get("author"), dict) and isinstance(
+        candidate.get("value"), dict
+    )
 
 
 __all__ = ["PostContent", "dedupe_posts", "map_posts_to_content"]

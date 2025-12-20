@@ -67,3 +67,41 @@ def test_map_posts_to_content_extracts_images():
         "https://example.com/full.jpg",
     ]
     assert content.body == "Hello world"
+
+
+def test_map_posts_to_content_appends_quoted_text():
+    """It includes quoted post content when present."""
+
+    now_str = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    posts = [
+        {
+            "post": {
+                "uri": "at://did:plc:test/app.bsky.feed.post/123",
+                "author": {"handle": "quoting.bsky.social"},
+                "record": {"text": "My thoughts", "created_at": now_str},
+                "embed": {
+                    "$type": "app.bsky.embed.record#view",
+                    "record": {
+                        "uri": "at://did:plc:test/app.bsky.feed.post/456",
+                        "cid": "bafyreigdtest",
+                        "author": {"handle": "original.bsky.social"},
+                        "value": {
+                            "$type": "app.bsky.feed.post",
+                            "text": "Original quoted text",
+                            "createdAt": now_str,
+                        },
+                    },
+                },
+            }
+        }
+    ]
+
+    mapped = map_posts_to_content(posts)
+
+    assert len(mapped) == 1
+    content: PostContent = mapped[0]
+    assert content.author == "quoting.bsky.social"
+    assert content.body == (
+        "My thoughts\n\nQuoted from original.bsky.social:\nOriginal quoted text"
+    )
+    assert content.title == "My thoughts"

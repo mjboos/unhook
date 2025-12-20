@@ -12,79 +12,8 @@ from unhook.feed import (
     parse_timestamp,
 )
 
-
-@pytest.fixture
-def mock_env_vars(monkeypatch):
-    """Set up mock environment variables."""
-    monkeypatch.setenv("BLUESKY_HANDLE", "test.bsky.social")
-    monkeypatch.setenv("BLUESKY_APP_PASSWORD", "test-password")
-
-
-def make_post_mock(post_id: int, text: str, created_at: str):
-    """Create a mock post object with the given data."""
-    return MagicMock(
-        model_dump=lambda post_id=post_id, text=text, created_at=created_at: {
-            "post": {
-                "uri": f"at://did:plc:test/app.bsky.feed.post/{post_id}",
-                "cid": f"cid{post_id}",
-                "author": {
-                    "did": "did:plc:test",
-                    "handle": "test.bsky.social",
-                },
-                "record": {
-                    "text": text,
-                    "created_at": created_at,
-                },
-            }
-        }
-    )
-
-
-def make_post(
-    uri: str,
-    author: str,
-    text: str,
-    parent_uri: str | None = None,
-    images: list[str] | None = None,
-):
-    """Create a minimal post dictionary for threading tests."""
-
-    record: dict = {"text": text, "created_at": "2025-01-01T00:00:00Z"}
-    if parent_uri:
-        record["reply"] = {"parent": {"uri": parent_uri}}
-
-    embed = {"images": [{"fullsize": url} for url in images]} if images else {}
-
-    return {
-        "post": {
-            "uri": uri,
-            "cid": f"cid-{uri.split('/')[-1]}",
-            "author": {"did": author, "handle": f"{author}.bsky.social"},
-            "record": record,
-            "embed": embed,
-        }
-    }
-
-
-@pytest.fixture
-def sample_timeline_response():
-    """Sample timeline response data with recent posts."""
-    now = datetime.now(UTC)
-    return MagicMock(
-        feed=[
-            make_post_mock(
-                1,
-                "Test post 1",
-                (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
-            ),
-            make_post_mock(
-                2,
-                "Test post 2",
-                (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z"),
-            ),
-        ],
-        cursor=None,
-    )
+# Import shared helpers from conftest - pytest makes these available
+from tests.conftest import make_post, make_post_mock
 
 
 def test_fetch_feed_posts_success(mock_env_vars, sample_timeline_response):

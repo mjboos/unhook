@@ -71,6 +71,10 @@ def export_epub(
     min_length: int = typer.Option(
         100, help="Minimum length (in characters) a post must have to include"
     ),
+    repost_min_length: int = typer.Option(
+        300,
+        help="Minimum length (in characters) a repost must have to include",
+    ),
 ) -> None:
     """Fetch recent posts and export them as an EPUB file."""
 
@@ -80,6 +84,7 @@ def export_epub(
             limit=limit,
             file_prefix=file_prefix,
             min_length=min_length,
+            repost_min_length=repost_min_length,
         )
     )
     typer.echo(f"Saved EPUB to {output_path}")

@@ -113,6 +113,7 @@ async def export_recent_posts_to_epub(
     content_posts: list[PostContent] = _filter_by_length(
         map_posts_to_content(unique_posts), min_length=min_length
     )
+    content_posts = sorted(content_posts, key=lambda post: post.published)
 
     image_urls = [url for post in content_posts for url in post.image_urls]
     images = await download_images(image_urls) if image_urls else {}

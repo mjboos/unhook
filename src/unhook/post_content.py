@@ -45,6 +45,11 @@ def map_posts_to_content(posts: Iterable[dict]) -> list[PostContent]:
         record = post_data.get("record", {})
 
         body = record.get("text", "").strip()
+        facets = record.get("facets")
+        if not isinstance(facets, list) and hasattr(facets, "tolist"):
+            facets = facets.tolist()
+        if isinstance(facets, list):
+            body = _apply_link_facets(body, facets)
         quote_author, quote_text = _extract_quote_content(post_data)
         if quote_text:
             label = quote_author or "quoted post"
@@ -76,7 +81,14 @@ def _extract_image_urls(post_data: dict) -> list[str]:
 
     embed = post_data.get("embed") or {}
     if isinstance(embed, dict):
-        images = embed.get("images") or []
+        images = embed.get("images")
+        if images is None:
+            images = []
+        elif not isinstance(images, list):
+            if hasattr(images, "tolist"):
+                images = images.tolist()
+            else:
+                images = []
         urls = []
         for image in images:
             if isinstance(image, dict):
@@ -87,6 +99,70 @@ def _extract_image_urls(post_data: dict) -> list[str]:
         return urls
 
     return []
+
+
+def _apply_link_facets(text: str, facets: list[dict]) -> str:
+    """Replace text ranges with numbered markdown links based on facets."""
+
+    if not text or not facets:
+        return text
+
+    byte_text = text.encode("utf-8")
+    replacements: list[tuple[int, int, str]] = []
+
+    def coerce_int(value: object) -> int | None:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    def normalize_list(value: object) -> list:
+        if isinstance(value, list):
+            return value
+        if hasattr(value, "tolist"):
+            normalized = value.tolist()
+            return normalized if isinstance(normalized, list) else []
+        return []
+
+    for facet in facets:
+        if not isinstance(facet, dict):
+            continue
+        index = facet.get("index")
+        if not isinstance(index, dict):
+            continue
+        byte_start = coerce_int(index.get("byteStart") or index.get("byte_start"))
+        byte_end = coerce_int(index.get("byteEnd") or index.get("byte_end"))
+        if byte_start is None or byte_end is None:
+            continue
+        if byte_start < 0 or byte_end > len(byte_text) or byte_start >= byte_end:
+            continue
+
+        features = normalize_list(facet.get("features"))
+        link_feature = next(
+            (
+                feature
+                for feature in features
+                if isinstance(feature, dict)
+                and (feature.get("$type") or feature.get("py_type"))
+                == "app.bsky.richtext.facet#link"
+                and isinstance(feature.get("uri"), str)
+            ),
+            None,
+        )
+        if not link_feature:
+            continue
+
+        replacements.append((byte_start, byte_end, link_feature["uri"]))
+
+    numbered: list[tuple[int, int, str, str]] = []
+    for idx, (byte_start, byte_end, uri) in enumerate(sorted(replacements), start=1):
+        numbered.append((byte_start, byte_end, uri, f"link{idx}"))
+
+    for byte_start, byte_end, uri, label in sorted(numbered, reverse=True):
+        replacement = f"[{label}]({uri})".encode()
+        byte_text = byte_text[:byte_start] + replacement + byte_text[byte_end:]
+
+    return byte_text.decode("utf-8", errors="replace")
 
 
 def _extract_quote_content(post_data: dict) -> tuple[str | None, str | None]:

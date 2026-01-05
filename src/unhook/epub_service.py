@@ -176,14 +176,23 @@ async def export_recent_posts_to_epub(
 
     # Fetch Twitter posts if enabled
     if include_twitter:
-        twitter_posts = fetch_twitter_posts(
-            config_path=twitter_config_path,
-            limit=twitter_limit,
-        )
-        twitter_posts = _filter_by_length(twitter_posts, min_length=twitter_min_length)
-        if twitter_posts:
-            chapters.append(("Twitter", twitter_posts))
-            logger.info("Fetched %d Twitter posts", len(twitter_posts))
+        try:
+            twitter_posts = fetch_twitter_posts(
+                config_path=twitter_config_path,
+                limit=twitter_limit,
+            )
+            twitter_posts = _filter_by_length(
+                twitter_posts, min_length=twitter_min_length
+            )
+            if twitter_posts:
+                chapters.append(("Twitter", twitter_posts))
+                logger.info("Fetched %d Twitter posts", len(twitter_posts))
+            else:
+                logger.warning(
+                    "No Twitter posts fetched - Nitter instances may be unavailable"
+                )
+        except Exception as e:
+            logger.warning("Failed to fetch Twitter posts: %s", e)
 
     # Collect all image URLs from all chapters
     all_content_posts = [post for _, posts in chapters for post in posts]

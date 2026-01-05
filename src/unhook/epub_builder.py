@@ -71,62 +71,99 @@ class EpubBuilder:
         image_bytes: dict[str, bytes],
         output_path: Path,
     ) -> Path:
-        """Build an EPUB file from post content."""
+        """Build an EPUB file from post content.
 
+        This is a convenience wrapper around build_multi_chapter for
+        single-chapter EPUBs.
+        """
+        return self.build_multi_chapter(
+            chapters=[("Posts", posts)],
+            image_bytes=image_bytes,
+            output_path=output_path,
+        )
+
+    def build_multi_chapter(
+        self,
+        chapters: list[tuple[str, list[PostContent]]],
+        image_bytes: dict[str, bytes],
+        output_path: Path,
+    ) -> Path:
+        """Build an EPUB file with multiple chapters.
+
+        Args:
+            chapters: List of (chapter_title, posts) tuples.
+            image_bytes: Mapping of image URLs to their content.
+            output_path: Where to write the EPUB file.
+
+        Returns:
+            The output path.
+        """
         book = epub.EpubBook()
         book.set_identifier("unhook-export")
         book.set_title(self.title)
         book.set_language(self.language)
 
-        content_sections: list[str] = []
-        for idx, post in enumerate(posts, start=1):
-            body_html = _sanitize_content(post.body)
-            image_tags: list[str] = []
-            for image_idx, image_url in enumerate(post.image_urls, start=1):
-                content = image_bytes.get(image_url)
-                if not content:
-                    logger.warning("Missing bytes for image %s", image_url)
-                    continue
+        epub_chapters: list[epub.EpubHtml] = []
+        global_image_idx = 0
 
-                image_name = f"images/post_{idx}_{image_idx}"
-                media_type = _guess_media_type(image_url)
-                extension = mimetypes.guess_extension(media_type) or ".img"
-                file_name = f"{image_name}{extension}"
+        for chapter_idx, (chapter_title, posts) in enumerate(chapters, start=1):
+            content_sections: list[str] = []
 
-                image_item = epub.EpubItem(
-                    uid=file_name,
-                    file_name=file_name,
-                    media_type=media_type,
-                    content=content,
+            for post_idx, post in enumerate(posts, start=1):
+                body_html = _sanitize_content(post.body)
+                image_tags: list[str] = []
+
+                for image_idx, image_url in enumerate(post.image_urls, start=1):
+                    content = image_bytes.get(image_url)
+                    if not content:
+                        logger.warning("Missing bytes for image %s", image_url)
+                        continue
+
+                    global_image_idx += 1
+                    image_name = f"images/ch{chapter_idx}_post_{post_idx}_{image_idx}"
+                    media_type = _guess_media_type(image_url)
+                    extension = mimetypes.guess_extension(media_type) or ".img"
+                    file_name = f"{image_name}{extension}"
+
+                    image_item = epub.EpubItem(
+                        uid=file_name,
+                        file_name=file_name,
+                        media_type=media_type,
+                        content=content,
+                    )
+                    book.add_item(image_item)
+                    image_tags.append(
+                        f'<p><img src="{file_name}" alt="Image {image_idx}" /></p>'
+                    )
+
+                author = bleach.clean(post.author)
+                published = post.published.isoformat()
+                repost_header = ""
+                if post.reposted_by:
+                    reposter = bleach.clean(post.reposted_by)
+                    repost_header = f"<p><strong>Reposted by @{reposter}</strong></p>"
+                metadata_html = f"<p><em>{author} - {published}</em></p>"
+                content_sections.append(
+                    f"{repost_header}{metadata_html}{body_html}{''.join(image_tags)}"
                 )
-                book.add_item(image_item)
-                image_tags.append(
-                    f'<p><img src="{file_name}" alt="Image {image_idx}" /></p>'
-                )
+                if post_idx < len(posts):
+                    content_sections.append("<hr />")
 
-            author = bleach.clean(post.author)
-            published = post.published.isoformat()
-            repost_header = ""
-            if post.reposted_by:
-                reposter = bleach.clean(post.reposted_by)
-                repost_header = f"<p><strong>Reposted by @{reposter}</strong></p>"
-            metadata_html = f"<p><em>{author} - {published}</em></p>"
-            content_sections.append(
-                f"{repost_header}{metadata_html}{body_html}{''.join(image_tags)}"
+            chapter = epub.EpubHtml(
+                title=chapter_title,
+                file_name=f"chapter_{chapter_idx}.xhtml",
+                lang=self.language,
             )
-            if idx < len(posts):
-                content_sections.append("<hr />")
+            chapter.content = f"<h1>{bleach.clean(chapter_title)}</h1>" + (
+                "".join(content_sections) or "<p>No posts available.</p>"
+            )
+            book.add_item(chapter)
+            epub_chapters.append(chapter)
 
-        chapter = epub.EpubHtml(
-            title=self.title, file_name="post_1.xhtml", lang=self.language
-        )
-        chapter.content = "".join(content_sections) or "<p>No posts available.</p>"
-
-        book.add_item(chapter)
-        book.spine = ["nav", chapter]
+        book.spine = ["nav"] + epub_chapters
         book.add_item(epub.EpubNcx())
         book.add_item(epub.EpubNav())
-        book.toc = [chapter]
+        book.toc = epub_chapters
 
         epub.write_epub(str(output_path), book)
         return output_path

@@ -66,14 +66,30 @@ def fetch(
 @app.command()
 def export_epub(
     output_dir: Path = typer.Option(Path("exports"), help="Directory to save EPUBs"),
-    limit: int = typer.Option(200, help="Maximum number of posts to fetch"),
+    limit: int = typer.Option(200, help="Maximum number of Bluesky posts to fetch"),
     file_prefix: str = typer.Option("posts", help="Filename prefix for the EPUB"),
     min_length: int = typer.Option(
-        100, help="Minimum length (in characters) a post must have to include"
+        100, help="Minimum length (in characters) a Bluesky post must have to include"
     ),
     repost_min_length: int = typer.Option(
         300,
-        help="Minimum length (in characters) a repost must have to include",
+        help="Minimum length (in characters) a Bluesky repost must have to include",
+    ),
+    twitter: bool = typer.Option(
+        False, "--twitter", help="Include Twitter posts from configured users"
+    ),
+    twitter_config: Path = typer.Option(
+        None,
+        "--twitter-config",
+        help="Path to twitter_users.txt (default: ./twitter_users.txt)",
+    ),
+    twitter_limit: int = typer.Option(
+        100, "--twitter-limit", help="Maximum number of Twitter posts to fetch"
+    ),
+    twitter_min_length: int = typer.Option(
+        50,
+        "--twitter-min-length",
+        help="Minimum length (in characters) a Twitter post must have to include",
     ),
 ) -> None:
     """Fetch recent posts and export them as an EPUB file."""
@@ -85,6 +101,10 @@ def export_epub(
             file_prefix=file_prefix,
             min_length=min_length,
             repost_min_length=repost_min_length,
+            include_twitter=twitter,
+            twitter_config_path=twitter_config,
+            twitter_limit=twitter_limit,
+            twitter_min_length=twitter_min_length,
         )
     )
     typer.echo(f"Saved EPUB to {output_path}")

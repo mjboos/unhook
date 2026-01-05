@@ -20,6 +20,7 @@ from unhook.feed import (
     find_self_threads,
 )
 from unhook.post_content import PostContent, dedupe_posts, map_posts_to_content
+from unhook.twitter_feed import fetch_twitter_posts
 
 logger = logging.getLogger(__name__)
 MAX_IMAGE_DIMENSION = 1200
@@ -91,9 +92,27 @@ async def export_recent_posts_to_epub(
     file_prefix: str = "posts",
     min_length: int = 100,
     repost_min_length: int = 300,
+    include_twitter: bool = False,
+    twitter_config_path: Path | str | None = None,
+    twitter_limit: int = 100,
+    twitter_min_length: int = 50,
 ) -> Path:
-    """Fetch posts, download assets, and build an EPUB file."""
+    """Fetch posts, download assets, and build an EPUB file.
 
+    Args:
+        output_dir: Directory to save the EPUB file.
+        limit: Maximum Bluesky posts to fetch.
+        file_prefix: Filename prefix for the EPUB.
+        min_length: Minimum character length for Bluesky posts.
+        repost_min_length: Minimum character length for Bluesky reposts.
+        include_twitter: Whether to include Twitter posts.
+        twitter_config_path: Path to twitter_users.txt config file.
+        twitter_limit: Maximum Twitter posts to fetch.
+        twitter_min_length: Minimum character length for Twitter posts.
+
+    Returns:
+        Path to the created EPUB file.
+    """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -149,17 +168,33 @@ async def export_recent_posts_to_epub(
     )
 
     # Merge and sort by published date
-    content_posts = native_content + repost_content
-    content_posts = sorted(content_posts, key=lambda post: post.published, reverse=True)
+    bluesky_posts = native_content + repost_content
+    bluesky_posts = sorted(bluesky_posts, key=lambda post: post.published, reverse=True)
 
-    image_urls = [url for post in content_posts for url in post.image_urls]
+    # Build chapters list
+    chapters: list[tuple[str, list[PostContent]]] = [("Bluesky", bluesky_posts)]
+
+    # Fetch Twitter posts if enabled
+    if include_twitter:
+        twitter_posts = fetch_twitter_posts(
+            config_path=twitter_config_path,
+            limit=twitter_limit,
+        )
+        twitter_posts = _filter_by_length(twitter_posts, min_length=twitter_min_length)
+        if twitter_posts:
+            chapters.append(("Twitter", twitter_posts))
+            logger.info("Fetched %d Twitter posts", len(twitter_posts))
+
+    # Collect all image URLs from all chapters
+    all_content_posts = [post for _, posts in chapters for post in posts]
+    image_urls = [url for post in all_content_posts for url in post.image_urls]
     images = await download_images(image_urls) if image_urls else {}
 
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     output_path = output_dir / f"{file_prefix}-{timestamp}.epub"
 
     builder = EpubBuilder(title="Recent posts")
-    builder.build(content_posts, images, output_path)
+    builder.build_multi_chapter(chapters, images, output_path)
 
     logger.info("EPUB created at %s", output_path)
     return output_path

@@ -1,0 +1,90 @@
+name: Twitter Integration Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum number of Twitter posts to fetch"
+        required: false
+        default: "100"
+      since_days:
+        description: "Days of history to include"
+        required: false
+        default: "7"
+
+jobs:
+  fetch-twitter-feed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Fetch Twitter feed via Nitter RSS
+        run: |
+          uv run python -c "
+          from unhook.twitter_feed import fetch_twitter_posts, load_twitter_users
+          import json
+
+          users = load_twitter_users()
+          print(f'Configured users: {users}')
+
+          posts = fetch_twitter_posts(
+              limit=${{ github.event.inputs.limit }},
+              since_days=${{ github.event.inputs.since_days }}
+          )
+          print(f'Fetched {len(posts)} posts')
+
+          for post in posts[:5]:
+              print(f'- @{post.author}: {post.title[:50]}...')
+          "
+
+      - name: Export Twitter-only EPUB
+        run: |
+          uv run python -c "
+          import asyncio
+          from pathlib import Path
+          from datetime import datetime
+
+          from unhook.twitter_feed import fetch_twitter_posts
+          from unhook.epub_builder import EpubBuilder
+          from unhook.epub_service import download_images, _filter_by_length
+
+          async def export_twitter_epub():
+              posts = fetch_twitter_posts(
+                  limit=${{ github.event.inputs.limit }},
+                  since_days=${{ github.event.inputs.since_days }}
+              )
+              posts = _filter_by_length(posts, min_length=50)
+
+              image_urls = [url for post in posts for url in post.image_urls]
+              images = await download_images(image_urls) if image_urls else {}
+
+              output_dir = Path('exports')
+              output_dir.mkdir(exist_ok=True)
+
+              timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+              output_path = output_dir / f'twitter-{timestamp}.epub'
+
+              builder = EpubBuilder(title='Twitter Feed')
+              builder.build_multi_chapter([('Twitter', posts)], images, output_path)
+
+              print(f'Created EPUB with {len(posts)} posts at {output_path}')
+              return output_path
+
+          asyncio.run(export_twitter_epub())
+          "
+
+      - name: Upload Twitter EPUB
+        uses: actions/upload-artifact@v4
+        with:
+          name: twitter-epub
+          path: exports/*.epub
+          if-no-files-found: error

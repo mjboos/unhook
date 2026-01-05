@@ -4,13 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       limit:
-        description: "Maximum number of posts to fetch"
+        description: "Maximum number of Bluesky posts to fetch"
         required: false
         default: "100"
       since_days:
         description: "Days of history to include"
         required: false
         default: "7"
+      include_twitter:
+        description: "Include Twitter posts"
+        required: false
+        default: "true"
+        type: boolean
+      twitter_limit:
+        description: "Maximum number of Twitter posts"
+        required: false
+        default: "100"
 
 jobs:
   fetch-and-send:
@@ -39,9 +48,14 @@ jobs:
 
       - name: Export EPUB
         run: |
+          TWITTER_FLAG=""
+          if [ "${{ github.event.inputs.include_twitter }}" = "true" ]; then
+            TWITTER_FLAG="--twitter --twitter-limit ${{ github.event.inputs.twitter_limit }}"
+          fi
           uv run python -m unhook.cmd export-epub \
             --limit "${{ github.event.inputs.limit }}" \
-            --file-prefix kindle
+            --file-prefix kindle \
+            $TWITTER_FLAG
 
       - name: Send EPUB via email
         uses: dawidd6/action-send-mail@v5
@@ -51,10 +65,10 @@ jobs:
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.GAPPPWD }}
           secure: false
-          subject: "Bluesky feed EPUB"
+          subject: "Social Feed EPUB"
           to: ${{ secrets.AMAZON_KINDLE_ADDRESS }}
           from: "Github actions <${{ secrets.SMTP_USERNAME }}>"
-          body: "Automated EPUB export from integration run."
+          body: "Automated EPUB export with Bluesky and Twitter feeds."
           attachments: "exports/*.epub"
 
       - name: Upload artifacts

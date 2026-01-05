@@ -1,9 +1,7 @@
 """Tests for Twitter feed fetching via Nitter RSS."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from unhook.twitter_feed import (
     _clean_html_to_text,

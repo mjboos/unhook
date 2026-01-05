@@ -5,15 +5,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Import shared helpers from conftest - pytest makes these available
+from tests.conftest import make_post, make_post_mock
 from unhook.feed import (
     consolidate_threads_to_posts,
     fetch_feed_posts,
     find_self_threads,
     parse_timestamp,
 )
-
-# Import shared helpers from conftest - pytest makes these available
-from tests.conftest import make_post, make_post_mock
 
 
 def test_fetch_feed_posts_success(mock_env_vars, sample_timeline_response):

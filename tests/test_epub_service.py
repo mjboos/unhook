@@ -10,12 +10,12 @@ from ebooklib import ITEM_DOCUMENT, epub
 from PIL import Image
 
 from unhook.epub_service import (
-    _compress_image,
-    _is_repost,
-    _filter_by_length,
-    _get_reposter_handle,
     _build_repost_info,
+    _compress_image,
+    _filter_by_length,
     _filter_top_level_posts,
+    _get_reposter_handle,
+    _is_repost,
     download_images,
     export_recent_posts_to_epub,
 )
@@ -587,7 +587,10 @@ class TestFilterTopLevelPosts:
             {
                 "post": {
                     "uri": "at://reply",
-                    "record": {"text": "Reply", "reply": {"parent": {"uri": "at://other"}}},
+                    "record": {
+                        "text": "Reply",
+                        "reply": {"parent": {"uri": "at://other"}},
+                    },
                 }
             },
         ]

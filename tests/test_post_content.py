@@ -3,17 +3,16 @@
 from datetime import UTC, datetime
 
 import numpy as np
-import pytest
 
 from unhook.post_content import (
     PostContent,
-    dedupe_posts,
-    map_posts_to_content,
     _apply_link_facets,
     _extract_image_urls,
     _extract_quote_content,
     _extract_record_view,
     _is_view_record,
+    dedupe_posts,
+    map_posts_to_content,
 )
 
 
@@ -312,7 +311,16 @@ class TestApplyLinkFacets:
     def test_ignores_facets_without_index(self):
         """It ignores facets without an index field."""
         text = "Hello world"
-        facets = [{"features": [{"$type": "app.bsky.richtext.facet#link", "uri": "http://example.com"}]}]
+        facets = [
+            {
+                "features": [
+                    {
+                        "$type": "app.bsky.richtext.facet#link",
+                        "uri": "http://example.com",
+                    }
+                ]
+            }
+        ]
         assert _apply_link_facets(text, facets) == "Hello world"
 
     def test_ignores_facets_with_invalid_byte_range(self):
@@ -321,7 +329,12 @@ class TestApplyLinkFacets:
         facets = [
             {
                 "index": {"byteStart": -1, "byteEnd": 5},
-                "features": [{"$type": "app.bsky.richtext.facet#link", "uri": "http://example.com"}],
+                "features": [
+                    {
+                        "$type": "app.bsky.richtext.facet#link",
+                        "uri": "http://example.com",
+                    }
+                ],
             }
         ]
         assert _apply_link_facets(text, facets) == "Hello"
@@ -332,7 +345,12 @@ class TestApplyLinkFacets:
         facets = [
             {
                 "index": {"byteStart": 5, "byteEnd": 3},
-                "features": [{"$type": "app.bsky.richtext.facet#link", "uri": "http://example.com"}],
+                "features": [
+                    {
+                        "$type": "app.bsky.richtext.facet#link",
+                        "uri": "http://example.com",
+                    }
+                ],
             }
         ]
         assert _apply_link_facets(text, facets) == "Hello"
@@ -343,7 +361,9 @@ class TestApplyLinkFacets:
         facets = [
             {
                 "index": {"byteStart": 0, "byteEnd": 5},
-                "features": [{"$type": "app.bsky.richtext.facet#mention", "did": "did:plc:test"}],
+                "features": [
+                    {"$type": "app.bsky.richtext.facet#mention", "did": "did:plc:test"}
+                ],
             }
         ]
         assert _apply_link_facets(text, facets) == "Hello"
@@ -369,7 +389,9 @@ class TestApplyLinkFacets:
         facets = [
             {
                 "index": {"byteStart": start, "byteEnd": end},
-                "features": [{"$type": "app.bsky.richtext.facet#link", "uri": "http://link.com"}],
+                "features": [
+                    {"$type": "app.bsky.richtext.facet#link", "uri": "http://link.com"}
+                ],
             }
         ]
         result = _apply_link_facets(text, facets)
@@ -393,11 +415,15 @@ class TestExtractImageUrls:
 
     def test_returns_empty_list_for_embed_without_images(self):
         """It returns empty list when embed has no images field."""
-        assert _extract_image_urls({"embed": {"$type": "app.bsky.embed.external"}}) == []
+        assert (
+            _extract_image_urls({"embed": {"$type": "app.bsky.embed.external"}}) == []
+        )
 
     def test_skips_non_dict_image_entries(self):
         """It skips image entries that are not dicts."""
-        post_data = {"embed": {"images": ["not a dict", None, {"fullsize": "http://img.com"}]}}
+        post_data = {
+            "embed": {"images": ["not a dict", None, {"fullsize": "http://img.com"}]}
+        }
         result = _extract_image_urls(post_data)
         assert result == ["http://img.com"]
 
@@ -720,7 +746,10 @@ class TestMapPostsToContentEdgeCases:
                 "post": {
                     "uri": "at://test",
                     "author": {"handle": "author"},
-                    "record": {"text": "First line\nSecond line", "created_at": now_str},
+                    "record": {
+                        "text": "First line\nSecond line",
+                        "created_at": now_str,
+                    },
                 }
             }
         ]

@@ -1,7 +1,5 @@
 """Tests for shared constants and utilities."""
 
-import pytest
-
 from unhook.constants import (
     BSKY_EMBED_RECORD_VIEW_BLOCKED,
     BSKY_EMBED_RECORD_VIEW_DETACHED,

@@ -12,7 +12,7 @@ from pathlib import Path
 import httpx
 from PIL import Image, UnidentifiedImageError
 
-from unhook.constants import BSKY_REPOST_TYPE, BSKY_REASON_REPOST, get_type_field
+from unhook.constants import BSKY_REASON_REPOST, BSKY_REPOST_TYPE, get_type_field
 from unhook.epub_builder import EpubBuilder
 from unhook.feed import (
     consolidate_threads_to_posts,

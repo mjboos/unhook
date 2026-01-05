@@ -6,12 +6,107 @@ from unittest.mock import patch
 from unhook.twitter_feed import (
     _clean_html_to_text,
     _extract_images_from_html,
+    _fetch_rss_content,
+    _get_nitter_instances,
     _is_retweet,
     _parse_rss_timestamp,
     fetch_twitter_posts,
+    fetch_twitter_rss,
     load_twitter_users,
     map_twitter_entries_to_content,
 )
+
+
+class TestGetNitterInstances:
+    def test_returns_defaults_when_no_env(self):
+        with patch.dict("os.environ", {}, clear=True):
+            instances = _get_nitter_instances()
+            assert len(instances) >= 1
+            assert "nitter.poast.org" in instances[0]
+
+    def test_single_instance_override(self):
+        with patch.dict("os.environ", {"NITTER_INSTANCE": "https://custom.nitter.com"}):
+            instances = _get_nitter_instances()
+            assert instances == ["https://custom.nitter.com"]
+
+    def test_multiple_instances_override(self):
+        with patch.dict(
+            "os.environ", {"NITTER_INSTANCES": "https://a.com, https://b.com"}
+        ):
+            instances = _get_nitter_instances()
+            assert instances == ["https://a.com", "https://b.com"]
+
+    def test_strips_trailing_slashes(self):
+        with patch.dict("os.environ", {"NITTER_INSTANCE": "https://example.com/"}):
+            instances = _get_nitter_instances()
+            assert instances == ["https://example.com"]
+
+
+class TestFetchRssContent:
+    @patch("unhook.twitter_feed.httpx.get")
+    def test_returns_content_for_valid_rss(self, mock_get):
+        mock_response = mock_get.return_value
+        mock_response.status_code = 200
+        mock_response.headers = {"content-type": "application/rss+xml"}
+        mock_response.text = '<?xml version="1.0"?><rss><channel></channel></rss>'
+
+        result = _fetch_rss_content("https://example.com/rss")
+
+        assert result is not None
+        assert "<rss>" in result
+
+    @patch("unhook.twitter_feed.httpx.get")
+    def test_returns_none_for_html_response(self, mock_get):
+        mock_response = mock_get.return_value
+        mock_response.status_code = 200
+        mock_response.headers = {"content-type": "text/html"}
+        mock_response.text = "<html><body>Error page</body></html>"
+
+        result = _fetch_rss_content("https://example.com/rss")
+
+        assert result is None
+
+    @patch("unhook.twitter_feed.httpx.get")
+    def test_returns_none_for_non_200(self, mock_get):
+        mock_response = mock_get.return_value
+        mock_response.status_code = 503
+        mock_response.headers = {}
+        mock_response.text = "Service unavailable"
+
+        result = _fetch_rss_content("https://example.com/rss")
+
+        assert result is None
+
+
+class TestFetchTwitterRss:
+    @patch("unhook.twitter_feed._fetch_rss_content")
+    def test_tries_multiple_instances_on_failure(self, mock_fetch):
+        # First two fail, third succeeds
+        valid_rss = (
+            '<?xml version="1.0"?>'
+            "<rss><channel><item><title>Test</title></item></channel></rss>"
+        )
+        mock_fetch.side_effect = [None, None, valid_rss]
+
+        with patch(
+            "unhook.twitter_feed._get_nitter_instances",
+            return_value=["https://a.com", "https://b.com", "https://c.com"],
+        ):
+            fetch_twitter_rss("testuser")
+
+        assert mock_fetch.call_count == 3
+
+    @patch("unhook.twitter_feed._fetch_rss_content")
+    def test_returns_empty_when_all_instances_fail(self, mock_fetch):
+        mock_fetch.return_value = None
+
+        with patch(
+            "unhook.twitter_feed._get_nitter_instances",
+            return_value=["https://a.com", "https://b.com"],
+        ):
+            result = fetch_twitter_rss("testuser")
+
+        assert result == []
 
 
 class TestLoadTwitterUsers:

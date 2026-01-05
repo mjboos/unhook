@@ -1,5 +1,6 @@
 """Test cases for the __main__ module."""
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -11,6 +12,7 @@ from ebooklib import ITEM_DOCUMENT, epub
 from typer.testing import CliRunner
 
 from unhook.cmd import app, main
+from unhook.post_content import PostContent
 
 
 @pytest.fixture
@@ -155,3 +157,81 @@ def test_fetch_writes_actual_file(runner: CliRunner, sample_posts, tmp_path):
             combined_html = "\n".join(html_docs)
             assert "Test post 1" in combined_html
             assert "Test post 2" in combined_html
+
+
+@pytest.fixture
+def sample_twitter_posts():
+    """Sample Twitter PostContent objects."""
+    return [
+        PostContent(
+            title="Tweet 1",
+            author="@testuser",
+            published=datetime.now(UTC),
+            body="This is a test tweet",
+            image_urls=[],
+            reposted_by=None,
+        ),
+        PostContent(
+            title="Tweet 2",
+            author="@anotheruser",
+            published=datetime.now(UTC),
+            body="Another test tweet with more content",
+            image_urls=["https://example.com/pic.jpg"],
+            reposted_by="@testuser",
+        ),
+    ]
+
+
+def test_fetch_twitter_command_saves_json(
+    runner: CliRunner, sample_twitter_posts, tmp_path
+):
+    """It saves Twitter posts to JSON file."""
+    with patch("unhook.cmd.fetch_twitter_posts") as mock_fetch:
+        mock_fetch.return_value = sample_twitter_posts
+
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            result = runner.invoke(app, ["fetch-twitter", "--output", "twitter.json"])
+
+            assert result.exit_code == 0
+            assert "Saved 2 Twitter posts to twitter.json" in result.stdout
+            assert Path("twitter.json").exists()
+
+            # Verify JSON structure
+            data = json.loads(Path("twitter.json").read_text())
+            assert len(data) == 2
+            assert data[0]["author"] == "@testuser"
+            assert data[0]["body"] == "This is a test tweet"
+            assert data[1]["reposted_by"] == "@testuser"
+
+
+def test_fetch_twitter_command_default_filename(
+    runner: CliRunner, sample_twitter_posts, tmp_path
+):
+    """It saves file with default date-based filename."""
+    with patch("unhook.cmd.fetch_twitter_posts") as mock_fetch:
+        mock_fetch.return_value = sample_twitter_posts
+
+        with patch("unhook.cmd.date") as mock_date:
+            mock_date.today.return_value.isoformat.return_value = "2025-01-05"
+
+            with runner.isolated_filesystem(temp_dir=tmp_path):
+                result = runner.invoke(app, ["fetch-twitter"])
+
+                assert result.exit_code == 0
+                assert "twitter-2025-01-05.json" in result.stdout
+                assert Path("twitter-2025-01-05.json").exists()
+
+
+def test_fetch_twitter_command_empty_result(runner: CliRunner, tmp_path):
+    """It handles empty results gracefully."""
+    with patch("unhook.cmd.fetch_twitter_posts") as mock_fetch:
+        mock_fetch.return_value = []
+
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            result = runner.invoke(app, ["fetch-twitter", "--output", "empty.json"])
+
+            assert result.exit_code == 0
+            assert "Saved 0 Twitter posts" in result.stdout
+
+            data = json.loads(Path("empty.json").read_text())
+            assert data == []

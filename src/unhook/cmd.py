@@ -9,6 +9,7 @@ import typer
 
 from unhook.epub_service import export_recent_posts_to_epub
 from unhook.feed import fetch_feed_posts
+from unhook.twitter_feed import fetch_twitter_posts
 
 app = typer.Typer()
 
@@ -61,6 +62,58 @@ def fetch(
     df.to_parquet(output_path)
 
     typer.echo(f"Saved {len(posts)} posts to {output}")
+
+
+@app.command()
+def fetch_twitter(
+    limit: int = typer.Option(100, help="Maximum number of posts to fetch"),
+    since_days: int = typer.Option(
+        7, help="Only fetch posts from the last N days (use 0 to disable)"
+    ),
+    output: str = typer.Option(
+        None, help="Output filename (default: twitter-YYYY-MM-DD.json)"
+    ),
+    config: Path = typer.Option(
+        None,
+        "--config",
+        help="Path to twitter_users.txt (default: ./twitter_users.txt)",
+    ),
+) -> None:
+    """
+    Fetch recent posts from Twitter via Nitter RSS and save to JSON.
+
+    Reads the list of Twitter users from twitter_users.txt (one username per line).
+    """
+    import json
+
+    posts = fetch_twitter_posts(
+        config_path=config,
+        since_days=since_days if since_days > 0 else None,
+        limit=limit,
+    )
+
+    # Convert PostContent objects to dicts
+    posts_data = [
+        {
+            "title": p.title,
+            "author": p.author,
+            "published": p.published.isoformat(),
+            "body": p.body,
+            "image_urls": p.image_urls,
+            "reposted_by": p.reposted_by,
+        }
+        for p in posts
+    ]
+
+    # Determine output filename
+    if output is None:
+        output = f"twitter-{date.today().isoformat()}.json"
+
+    # Save to JSON
+    output_path = Path(output)
+    output_path.write_text(json.dumps(posts_data, indent=2, ensure_ascii=False))
+
+    typer.echo(f"Saved {len(posts)} Twitter posts to {output}")
 
 
 @app.command()

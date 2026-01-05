@@ -6,6 +6,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from unhook.constants import (
+    BSKY_EMBED_RECORD_VIEW_BLOCKED,
+    BSKY_EMBED_RECORD_VIEW_DETACHED,
+    BSKY_EMBED_RECORD_VIEW_NOT_FOUND,
+    BSKY_LINK_FACET,
+    get_type_field,
+)
 from unhook.feed import parse_timestamp
 
 
@@ -144,8 +151,7 @@ def _apply_link_facets(text: str, facets: list[dict]) -> str:
                 feature
                 for feature in features
                 if isinstance(feature, dict)
-                and (feature.get("$type") or feature.get("py_type"))
-                == "app.bsky.richtext.facet#link"
+                and get_type_field(feature) == BSKY_LINK_FACET
                 and isinstance(feature.get("uri"), str)
             ),
             None,
@@ -178,10 +184,11 @@ def _extract_quote_content(post_data: dict) -> tuple[str | None, str | None]:
     if not isinstance(record_view, dict):
         return None, None
 
-    if record_view.get("$type") in {
-        "app.bsky.embed.record#viewBlocked",
-        "app.bsky.embed.record#viewNotFound",
-        "app.bsky.embed.record#viewDetached",
+    record_type = get_type_field(record_view)
+    if record_type in {
+        BSKY_EMBED_RECORD_VIEW_BLOCKED,
+        BSKY_EMBED_RECORD_VIEW_NOT_FOUND,
+        BSKY_EMBED_RECORD_VIEW_DETACHED,
     }:
         return None, None
 

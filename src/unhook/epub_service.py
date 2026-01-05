@@ -12,6 +12,7 @@ from pathlib import Path
 import httpx
 from PIL import Image, UnidentifiedImageError
 
+from unhook.constants import BSKY_REASON_REPOST, BSKY_REPOST_TYPE, get_type_field
 from unhook.epub_builder import EpubBuilder
 from unhook.feed import (
     consolidate_threads_to_posts,
@@ -184,17 +185,6 @@ def _filter_top_level_posts(posts: Iterable[dict]) -> list[dict]:
     return filtered
 
 
-def _filter_reposts(posts: Iterable[dict]) -> list[dict]:
-    """Return posts excluding entries that are pure reposts."""
-
-    return [post for post in posts if not _is_repost(post)]
-
-
-def _get_type_field(obj: dict) -> str:
-    """Return the $type or py_type field from an object."""
-    return obj.get("$type") or obj.get("py_type") or ""
-
-
 def _is_repost(post: dict) -> bool:
     """Return ``True`` when a feed item is a repost/retweet equivalent."""
 
@@ -202,16 +192,16 @@ def _is_repost(post: dict) -> bool:
     if not isinstance(reason, dict):
         reason = {}
 
-    reason_type = _get_type_field(reason)
-    if "reasonRepost" in reason_type:
+    reason_type = get_type_field(reason)
+    if BSKY_REASON_REPOST in reason_type:
         return True
 
     record = post.get("post", {}).get("record", {})
     if not isinstance(record, dict):
         return False
 
-    record_type = _get_type_field(record)
-    return record_type == "app.bsky.feed.repost"
+    record_type = get_type_field(record)
+    return record_type == BSKY_REPOST_TYPE
 
 
 def _filter_by_length(
@@ -252,8 +242,6 @@ def _map_reposts_to_content(
     posts: Iterable[dict], repost_info: dict[str, str]
 ) -> list[PostContent]:
     """Convert repost feed responses into PostContent with reposted_by set."""
-
-    from unhook.post_content import map_posts_to_content
 
     content_list = map_posts_to_content(posts)
 

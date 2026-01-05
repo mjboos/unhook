@@ -3,19 +3,55 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import mktime
 
 import feedparser
+import httpx
 
 from unhook.post_content import PostContent
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_NITTER_INSTANCE = "https://nitter.poast.org"
+# Nitter instances to try, in order of preference
+# Can be overridden via NITTER_INSTANCE environment variable
+DEFAULT_NITTER_INSTANCES = [
+    "https://nitter.poast.org",
+    "https://xcancel.com",
+    "https://nitter.privacyredirect.com",
+]
 DEFAULT_CONFIG_FILE = "twitter_users.txt"
+
+# User agent to avoid being blocked
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
+
+
+def _get_nitter_instances() -> list[str]:
+    """Get list of Nitter instances to try.
+
+    Can be overridden via NITTER_INSTANCE environment variable (single instance)
+    or NITTER_INSTANCES (comma-separated list).
+    """
+    # Single instance override
+    single = os.getenv("NITTER_INSTANCE")
+    if single:
+        return [single.rstrip("/")]
+
+    # Multiple instances override
+    multiple = os.getenv("NITTER_INSTANCES")
+    if multiple:
+        return [
+            inst.strip().rstrip("/") for inst in multiple.split(",") if inst.strip()
+        ]
+
+    return DEFAULT_NITTER_INSTANCES
 
 
 def load_twitter_users(config_path: Path | str | None = None) -> list[str]:
@@ -45,34 +81,96 @@ def load_twitter_users(config_path: Path | str | None = None) -> list[str]:
     return users
 
 
+def _fetch_rss_content(url: str, timeout: float = 15.0) -> str | None:
+    """Fetch RSS content from URL with proper headers.
+
+    Returns:
+        RSS content string if successful, None otherwise.
+    """
+    try:
+        response = httpx.get(
+            url,
+            timeout=timeout,
+            follow_redirects=True,
+            headers={"User-Agent": USER_AGENT},
+        )
+
+        if response.status_code != 200:
+            logger.warning("HTTP %d from %s", response.status_code, url)
+            return None
+
+        content_type = response.headers.get("content-type", "")
+        content = response.text
+
+        # Check if response looks like RSS/XML
+        if "xml" in content_type or content.strip().startswith("<?xml"):
+            return content
+
+        # Check if it's RSS without XML declaration
+        if "<rss" in content[:500] or "<feed" in content[:500]:
+            return content
+
+        # Likely an HTML error page
+        logger.warning(
+            "Response from %s is not RSS (content-type: %s)", url, content_type
+        )
+        return None
+
+    except httpx.TimeoutException:
+        logger.warning("Timeout fetching %s", url)
+        return None
+    except httpx.RequestError as exc:
+        logger.warning("Request error fetching %s: %s", url, exc)
+        return None
+
+
 def fetch_twitter_rss(
     username: str,
-    nitter_instance: str = DEFAULT_NITTER_INSTANCE,
+    nitter_instance: str | None = None,
 ) -> list[dict]:
     """Fetch RSS feed for a Twitter user via Nitter.
 
     Args:
         username: Twitter username (without @ prefix).
-        nitter_instance: Nitter instance URL.
+        nitter_instance: Specific Nitter instance URL (optional).
+            If not provided, will try multiple instances.
 
     Returns:
         List of RSS entry dicts from feedparser.
     """
-    url = f"{nitter_instance}/{username}/rss"
-    logger.info("Fetching Twitter RSS for @%s from %s", username, url)
+    instances = [nitter_instance] if nitter_instance else _get_nitter_instances()
 
-    feed = feedparser.parse(url)
+    for instance in instances:
+        url = f"{instance}/{username}/rss"
+        logger.info("Fetching Twitter RSS for @%s from %s", username, url)
 
-    if feed.bozo:
-        logger.warning("Error parsing RSS for @%s: %s", username, feed.bozo_exception)
-        return []
+        content = _fetch_rss_content(url)
+        if content is None:
+            continue
 
-    if not feed.entries:
-        logger.info("No entries found for @%s", username)
-        return []
+        feed = feedparser.parse(content)
 
-    logger.info("Fetched %d entries for @%s", len(feed.entries), username)
-    return list(feed.entries)
+        if feed.bozo:
+            logger.warning(
+                "Error parsing RSS for @%s from %s: %s",
+                username,
+                instance,
+                feed.bozo_exception,
+            )
+            continue
+
+        if not feed.entries:
+            logger.info("No entries found for @%s from %s", username, instance)
+            # Empty feed is valid, return empty list
+            return []
+
+        logger.info(
+            "Fetched %d entries for @%s from %s", len(feed.entries), username, instance
+        )
+        return list(feed.entries)
+
+    logger.warning("All Nitter instances failed for @%s", username)
+    return []
 
 
 def _parse_rss_timestamp(entry: dict) -> datetime:
@@ -226,7 +324,7 @@ def map_twitter_entries_to_content(
 
 def fetch_twitter_posts(
     config_path: Path | str | None = None,
-    nitter_instance: str = DEFAULT_NITTER_INSTANCE,
+    nitter_instance: str | None = None,
     since_days: int | None = 7,
     limit: int = 100,
 ) -> list[PostContent]:
@@ -234,7 +332,7 @@ def fetch_twitter_posts(
 
     Args:
         config_path: Path to twitter_users.txt config file.
-        nitter_instance: Nitter instance URL to use.
+        nitter_instance: Specific Nitter instance URL to use (optional).
         since_days: Only include posts from the last N days.
         limit: Maximum total posts to return.
 

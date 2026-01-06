@@ -124,6 +124,24 @@ async def _fetch_user_tweets_async(
         return []
 
 
+def _run_async(coro):
+    """Run an async coroutine, handling existing event loops."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None:
+        # Already in an event loop - run in a new thread
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(asyncio.run, coro)
+            return future.result()
+    else:
+        return asyncio.run(coro)
+
+
 def fetch_user_tweets(username: str, limit: int = 20) -> list[dict]:
     """Synchronous wrapper for fetching user tweets.
 
@@ -135,7 +153,7 @@ def fetch_user_tweets(username: str, limit: int = 20) -> list[dict]:
         List of tweet dicts.
     """
     try:
-        return asyncio.run(_fetch_user_tweets_async(username, limit))
+        return _run_async(_fetch_user_tweets_async(username, limit))
     except Exception as e:
         logger.warning("Error in async tweet fetch for @%s: %s", username, e)
         return []

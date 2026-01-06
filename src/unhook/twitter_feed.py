@@ -1,57 +1,17 @@
-"""Twitter feed fetching via Nitter RSS."""
+"""Twitter feed fetching via twikit GuestClient."""
 
 from __future__ import annotations
 
+import asyncio
 import logging
-import os
-import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from time import mktime
-
-import feedparser
-import httpx
 
 from unhook.post_content import PostContent
 
 logger = logging.getLogger(__name__)
 
-# Nitter instances to try, in order of preference
-# Can be overridden via NITTER_INSTANCE environment variable
-DEFAULT_NITTER_INSTANCES = [
-    "https://nitter.poast.org",
-    "https://xcancel.com",
-    "https://nitter.privacyredirect.com",
-]
 DEFAULT_CONFIG_FILE = "twitter_users.txt"
-
-# User agent to avoid being blocked
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/120.0.0.0 Safari/537.36"
-)
-
-
-def _get_nitter_instances() -> list[str]:
-    """Get list of Nitter instances to try.
-
-    Can be overridden via NITTER_INSTANCE environment variable (single instance)
-    or NITTER_INSTANCES (comma-separated list).
-    """
-    # Single instance override
-    single = os.getenv("NITTER_INSTANCE")
-    if single:
-        return [single.rstrip("/")]
-
-    # Multiple instances override
-    multiple = os.getenv("NITTER_INSTANCES")
-    if multiple:
-        return [
-            inst.strip().rstrip("/") for inst in multiple.split(",") if inst.strip()
-        ]
-
-    return DEFAULT_NITTER_INSTANCES
 
 
 def load_twitter_users(config_path: Path | str | None = None) -> list[str]:
@@ -81,187 +41,141 @@ def load_twitter_users(config_path: Path | str | None = None) -> list[str]:
     return users
 
 
-def _fetch_rss_content(url: str, timeout: float = 15.0) -> str | None:
-    """Fetch RSS content from URL with proper headers.
-
-    Returns:
-        RSS content string if successful, None otherwise.
-    """
-    try:
-        response = httpx.get(
-            url,
-            timeout=timeout,
-            follow_redirects=True,
-            headers={"User-Agent": USER_AGENT},
-        )
-
-        if response.status_code != 200:
-            logger.warning("HTTP %d from %s", response.status_code, url)
-            return None
-
-        content_type = response.headers.get("content-type", "")
-        content = response.text
-
-        # Check if response looks like RSS/XML
-        if "xml" in content_type or content.strip().startswith("<?xml"):
-            return content
-
-        # Check if it's RSS without XML declaration
-        if "<rss" in content[:500] or "<feed" in content[:500]:
-            return content
-
-        # Likely an HTML error page
-        logger.warning(
-            "Response from %s is not RSS (content-type: %s)", url, content_type
-        )
-        return None
-
-    except httpx.TimeoutException:
-        logger.warning("Timeout fetching %s", url)
-        return None
-    except httpx.RequestError as exc:
-        logger.warning("Request error fetching %s: %s", url, exc)
-        return None
-
-
-def fetch_twitter_rss(
+async def _fetch_user_tweets_async(
     username: str,
-    nitter_instance: str | None = None,
+    limit: int = 20,
 ) -> list[dict]:
-    """Fetch RSS feed for a Twitter user via Nitter.
+    """Fetch tweets for a user using twikit GuestClient.
 
     Args:
         username: Twitter username (without @ prefix).
-        nitter_instance: Specific Nitter instance URL (optional).
-            If not provided, will try multiple instances.
+        limit: Maximum number of tweets to fetch.
 
     Returns:
-        List of RSS entry dicts from feedparser.
+        List of tweet dicts with keys: text, created_at, author, images, is_retweet
     """
-    instances = [nitter_instance] if nitter_instance else _get_nitter_instances()
+    try:
+        from twikit.guest import GuestClient
+    except ImportError:
+        logger.error("twikit is not installed. Run: pip install twikit")
+        return []
 
-    for instance in instances:
-        url = f"{instance}/{username}/rss"
-        logger.info("Fetching Twitter RSS for @%s from %s", username, url)
+    client = GuestClient()
 
-        content = _fetch_rss_content(url)
-        if content is None:
-            continue
+    try:
+        # Activate guest token
+        await client.activate()
+        logger.info("Activated twikit guest client")
 
-        feed = feedparser.parse(content)
-
-        if feed.bozo:
-            logger.warning(
-                "Error parsing RSS for @%s from %s: %s",
-                username,
-                instance,
-                feed.bozo_exception,
-            )
-            continue
-
-        if not feed.entries:
-            logger.info("No entries found for @%s from %s", username, instance)
-            # Empty feed is valid, return empty list
+        # Get user by screen name to get their ID
+        user = await client.get_user_by_screen_name(username)
+        if not user:
+            logger.warning("User @%s not found", username)
             return []
 
-        logger.info(
-            "Fetched %d entries for @%s from %s", len(feed.entries), username, instance
-        )
-        return list(feed.entries)
+        logger.info("Found user @%s (id: %s)", username, user.id)
 
-    logger.warning("All Nitter instances failed for @%s", username)
-    return []
+        # Get user's tweets
+        tweets_result = await client.get_user_tweets(user.id, "Tweets")
+        if not tweets_result:
+            logger.info("No tweets found for @%s", username)
+            return []
+
+        tweets = []
+        count = 0
+        for tweet in tweets_result:
+            if count >= limit:
+                break
+
+            tweet_data = {
+                "text": tweet.text or "",
+                "created_at": tweet.created_at,
+                "author": username,
+                "tweet_id": tweet.id,
+                "is_retweet": False,
+                "retweet_author": None,
+                "images": [],
+            }
+
+            # Check if it's a retweet
+            if hasattr(tweet, "retweeted_tweet") and tweet.retweeted_tweet:
+                tweet_data["is_retweet"] = True
+                if hasattr(tweet.retweeted_tweet, "user"):
+                    tweet_data["retweet_author"] = (
+                        tweet.retweeted_tweet.user.screen_name
+                    )
+
+            # Extract media/images
+            if hasattr(tweet, "media") and tweet.media:
+                for media in tweet.media:
+                    if hasattr(media, "media_url_https"):
+                        tweet_data["images"].append(media.media_url_https)
+                    elif hasattr(media, "url"):
+                        tweet_data["images"].append(media.url)
+
+            tweets.append(tweet_data)
+            count += 1
+
+        logger.info("Fetched %d tweets for @%s", len(tweets), username)
+        return tweets
+
+    except Exception as e:
+        logger.warning("Error fetching tweets for @%s: %s", username, e)
+        return []
 
 
-def _parse_rss_timestamp(entry: dict) -> datetime:
-    """Parse timestamp from RSS entry."""
-    published = entry.get("published_parsed")
-    if published:
-        return datetime.fromtimestamp(mktime(published), tz=UTC)
-    updated = entry.get("updated_parsed")
-    if updated:
-        return datetime.fromtimestamp(mktime(updated), tz=UTC)
+def fetch_user_tweets(username: str, limit: int = 20) -> list[dict]:
+    """Synchronous wrapper for fetching user tweets.
+
+    Args:
+        username: Twitter username (without @ prefix).
+        limit: Maximum number of tweets to fetch.
+
+    Returns:
+        List of tweet dicts.
+    """
+    try:
+        return asyncio.run(_fetch_user_tweets_async(username, limit))
+    except Exception as e:
+        logger.warning("Error in async tweet fetch for @%s: %s", username, e)
+        return []
+
+
+def _parse_twitter_timestamp(date_str: str | None) -> datetime:
+    """Parse Twitter timestamp string to datetime.
+
+    Twitter uses format like: "Mon Jan 06 12:34:56 +0000 2025"
+    """
+    if not date_str:
+        return datetime.now(UTC)
+
+    try:
+        # Twitter format: "Mon Jan 06 12:34:56 +0000 2025"
+        dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
+        return dt
+    except ValueError:
+        pass
+
+    try:
+        # Try ISO format as fallback
+        dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        return dt
+    except ValueError:
+        pass
+
+    logger.debug("Could not parse date: %s", date_str)
     return datetime.now(UTC)
 
 
-def _extract_images_from_html(html_content: str) -> list[str]:
-    """Extract image URLs from HTML content."""
-    img_pattern = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
-    return img_pattern.findall(html_content)
-
-
-def _clean_html_to_text(html_content: str) -> str:
-    """Convert HTML content to plain text, preserving links as markdown."""
-    if not html_content:
-        return ""
-
-    text = html_content
-
-    # Convert <a href="...">text</a> to [text](url)
-    link_pattern = re.compile(
-        r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([^<]*)</a>', re.IGNORECASE
-    )
-    text = link_pattern.sub(r"[\2](\1)", text)
-
-    # Convert <br> and <br/> to newlines
-    text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
-
-    # Convert <p> tags to double newlines
-    text = re.sub(r"</?p[^>]*>", "\n\n", text, flags=re.IGNORECASE)
-
-    # Remove remaining HTML tags (but not their content)
-    text = re.sub(r"<[^>]+>", "", text)
-
-    # Decode common HTML entities
-    text = text.replace("&amp;", "&")
-    text = text.replace("&lt;", "<")
-    text = text.replace("&gt;", ">")
-    text = text.replace("&quot;", '"')
-    text = text.replace("&#39;", "'")
-    text = text.replace("&nbsp;", " ")
-
-    # Clean up excessive whitespace
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    text = text.strip()
-
-    return text
-
-
-def _is_retweet(entry: dict) -> bool:
-    """Check if an RSS entry is a retweet."""
-    title = entry.get("title", "")
-    return title.startswith("RT by @") or title.startswith("R to @")
-
-
-def _extract_retweet_info(entry: dict) -> tuple[str | None, str | None]:
-    """Extract retweeter handle and original author from retweet.
-
-    Returns:
-        Tuple of (retweeter_handle, original_author) or (None, None).
-    """
-    title = entry.get("title", "")
-
-    # RT by @retweeter: Original tweet from @original_author
-    rt_match = re.match(r"RT by @(\w+):", title)
-    if rt_match:
-        retweeter = rt_match.group(1)
-        # Try to find original author in the content
-        return retweeter, None
-
-    return None, None
-
-
-def map_twitter_entries_to_content(
-    entries: list[dict],
-    username: str,
+def map_tweets_to_content(
+    tweets: list[dict],
     since_days: int | None = 7,
 ) -> list[PostContent]:
-    """Convert RSS entries to PostContent objects.
+    """Convert tweet dicts to PostContent objects.
 
     Args:
-        entries: RSS entries from feedparser.
-        username: Twitter username these entries belong to.
-        since_days: Only include entries from the last N days. None to disable.
+        tweets: Tweet dicts from fetch_user_tweets.
+        since_days: Only include tweets from the last N days. None to disable.
 
     Returns:
         List of PostContent objects.
@@ -273,40 +187,29 @@ def map_twitter_entries_to_content(
 
     content_list: list[PostContent] = []
 
-    for entry in entries:
-        published = _parse_rss_timestamp(entry)
+    for tweet in tweets:
+        published = _parse_twitter_timestamp(tweet.get("created_at"))
 
         if cutoff and published < cutoff:
             continue
 
-        # Get the content - Nitter uses 'summary' for tweet text
-        html_content = entry.get("summary", "") or entry.get("description", "")
-
-        # Extract images before cleaning HTML
-        image_urls = _extract_images_from_html(html_content)
-
-        # Clean HTML to text
-        body = _clean_html_to_text(html_content)
-
+        body = tweet.get("text", "")
         if not body:
             continue
 
         # Generate title from first line
         title = body.split("\n", 1)[0][:60] if body else "Untitled"
 
-        # Handle retweets
-        reposted_by = None
-        author = username
-        if _is_retweet(entry):
-            retweeter, _ = _extract_retweet_info(entry)
-            if retweeter:
-                reposted_by = retweeter
-                # The actual author is in the username we're fetching
-                # but this is a retweet, so swap
-                author = username
-                reposted_by = username
-                # For retweets, we'd need to parse the original author from content
-                # For simplicity, mark it as reposted by the timeline owner
+        author = tweet.get("author", "unknown")
+        is_retweet = tweet.get("is_retweet", False)
+        retweet_author = tweet.get("retweet_author")
+
+        # For retweets, the original author posted it, retweeted by timeline owner
+        if is_retweet and retweet_author:
+            reposted_by = f"@{author}"
+            author = retweet_author
+        else:
+            reposted_by = None
 
         content_list.append(
             PostContent(
@@ -314,8 +217,8 @@ def map_twitter_entries_to_content(
                 author=f"@{author}",
                 published=published,
                 body=body,
-                image_urls=image_urls,
-                reposted_by=f"@{reposted_by}" if reposted_by else None,
+                image_urls=tweet.get("images", []),
+                reposted_by=reposted_by,
             )
         )
 
@@ -324,7 +227,6 @@ def map_twitter_entries_to_content(
 
 def fetch_twitter_posts(
     config_path: Path | str | None = None,
-    nitter_instance: str | None = None,
     since_days: int | None = 7,
     limit: int = 100,
 ) -> list[PostContent]:
@@ -332,7 +234,6 @@ def fetch_twitter_posts(
 
     Args:
         config_path: Path to twitter_users.txt config file.
-        nitter_instance: Specific Nitter instance URL to use (optional).
         since_days: Only include posts from the last N days.
         limit: Maximum total posts to return.
 
@@ -347,8 +248,8 @@ def fetch_twitter_posts(
     all_posts: list[PostContent] = []
 
     for username in users:
-        entries = fetch_twitter_rss(username, nitter_instance)
-        posts = map_twitter_entries_to_content(entries, username, since_days)
+        tweets = fetch_user_tweets(username, limit=50)
+        posts = map_tweets_to_content(tweets, since_days)
         all_posts.extend(posts)
 
     # Sort by date descending and limit
@@ -358,7 +259,7 @@ def fetch_twitter_posts(
 
 __all__ = [
     "load_twitter_users",
-    "fetch_twitter_rss",
+    "fetch_user_tweets",
     "fetch_twitter_posts",
-    "map_twitter_entries_to_content",
+    "map_tweets_to_content",
 ]

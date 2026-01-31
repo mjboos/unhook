@@ -1,0 +1,74 @@
+name: Gmail to Kindle
+
+on:
+  workflow_dispatch:
+    inputs:
+      since_days:
+        description: "Days of history to include"
+        required: false
+        default: "1"
+      label:
+        description: "Gmail label to fetch"
+        required: false
+        default: "newsletters-kindle"
+
+jobs:
+  fetch-and-send:
+    runs-on: ubuntu-latest
+    env:
+      GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Fetch Gmail and export EPUB
+        id: export
+        run: |
+          uv run python -m unhook.cmd gmail-to-kindle \
+            --since-days "${{ github.event.inputs.since_days }}" \
+            --label "${{ github.event.inputs.label }}" \
+            --output-dir "exports" \
+            --file-prefix "newsletters"
+
+          # Check if any EPUB was created
+          if ls exports/*.epub 1> /dev/null 2>&1; then
+            echo "epub_created=true" >> $GITHUB_OUTPUT
+          else
+            echo "epub_created=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send EPUB via email
+        if: steps.export.outputs.epub_created == 'true'
+        uses: dawidd6/action-send-mail@v5
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.GAPPPWD }}
+          secure: false
+          subject: "Newsletter digest"
+          to: ${{ secrets.AMAZON_KINDLE_ADDRESS }}
+          from: "Github actions <${{ secrets.SMTP_USERNAME }}>"
+          body: "Automated newsletter EPUB export."
+          attachments: "exports/*.epub"
+
+      - name: Upload artifacts
+        if: steps.export.outputs.epub_created == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gmail-kindle-artifacts
+          path: exports/*.epub
+          if-no-files-found: warn
+
+      - name: Log no emails found
+        if: steps.export.outputs.epub_created == 'false'
+        run: echo "No emails found matching criteria. Skipping send."

@@ -2,8 +2,7 @@
 
 from datetime import UTC, datetime
 from io import BytesIO
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from ebooklib import ITEM_DOCUMENT, epub
@@ -254,7 +253,7 @@ class TestEmailEpubBuilder:
         assert len(image_items) >= 1
 
     def test_sanitizes_html_content(self, tmp_path):
-        """It sanitizes HTML by removing script tags (text content remains but is harmless)."""
+        """It sanitizes HTML by removing script tags."""
         email = EmailContent(
             title="Email with Script",
             html_body="<p>Hello</p><script>evil()</script>",

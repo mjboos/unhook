@@ -1,7 +1,6 @@
 """Tests for the Gmail IMAP service."""
 
-from datetime import UTC, datetime, timedelta
-from email.message import EmailMessage
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest

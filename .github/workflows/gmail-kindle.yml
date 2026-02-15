@@ -16,8 +16,8 @@ jobs:
   fetch-and-send:
     runs-on: ubuntu-latest
     env:
-      GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
-      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      GAPPPWD: ${{ secrets.GAPPPWD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

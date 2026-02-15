@@ -102,19 +102,19 @@ def gmail_to_kindle(
     ),
     gmail_address: str = typer.Option(
         None,
-        envvar="GMAIL_ADDRESS",
-        help="Gmail address (or set GMAIL_ADDRESS env var)",
+        envvar="SMTP_USERNAME",
+        help="Gmail address (or set SMTP_USERNAME env var)",
     ),
     gmail_app_password: str = typer.Option(
         None,
-        envvar="GMAIL_APP_PASSWORD",
-        help="Gmail app password (or set GMAIL_APP_PASSWORD env var)",
+        envvar="GAPPPWD",
+        help="Gmail app password (or set GAPPPWD env var)",
     ),
 ) -> None:
     """Fetch emails from Gmail by label and export as EPUB.
 
     Requires Gmail IMAP access with an app password.
-    Set GMAIL_ADDRESS and GMAIL_APP_PASSWORD environment variables,
+    Set SMTP_USERNAME and GAPPPWD environment variables,
     or pass them as options.
     """
     from unhook.gmail_epub_service import export_gmail_to_epub
@@ -123,13 +123,13 @@ def gmail_to_kindle(
     # Validate required credentials
     if not gmail_address:
         typer.echo(
-            "Error: Gmail address required. Set GMAIL_ADDRESS or --gmail-address",
+            "Error: Gmail address required. Set SMTP_USERNAME env var",
             err=True,
         )
         raise typer.Exit(1)
     if not gmail_app_password:
         typer.echo(
-            "Error: App password required. Set GMAIL_APP_PASSWORD env var",
+            "Error: App password required. Set GAPPPWD env var",
             err=True,
         )
         raise typer.Exit(1)

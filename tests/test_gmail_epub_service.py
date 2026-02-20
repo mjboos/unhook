@@ -41,18 +41,32 @@ class TestSanitizeEmailHtml:
         assert "<p>" in result
         assert "<strong>" in result
 
-    def test_removes_script_tags(self):
-        """It removes script tags (text content may remain but is harmless)."""
+    def test_removes_script_tags_and_content(self):
+        """It removes script tags and their content."""
         html = "<p>Hello</p><script>alert('xss')</script>"
         result = _sanitize_email_html(html)
         assert "<script>" not in result
-        assert "</script>" not in result
+        assert "alert" not in result
 
-    def test_removes_style_tags(self):
-        """It removes style tags."""
-        html = "<p>Hello</p><style>body{color:red}</style>"
+    def test_removes_style_tags_and_content(self):
+        """It removes style tags and their CSS content."""
+        html = "<p>Hello</p><style>body{color:red} @media{}</style>"
         result = _sanitize_email_html(html)
         assert "<style>" not in result
+        assert "color:red" not in result
+        assert "@media" not in result
+
+    def test_removes_head_section(self):
+        """It removes the entire <head> section including styles and title."""
+        html = (
+            "<html><head><title>Test</title>"
+            "<style>.foo{margin:0}</style></head>"
+            "<body><p>Content</p></body></html>"
+        )
+        result = _sanitize_email_html(html)
+        assert ".foo" not in result
+        assert "margin:0" not in result
+        assert "<p>Content</p>" in result
 
     def test_preserves_img_tags(self):
         """It preserves img tags with allowed attributes."""
@@ -84,42 +98,56 @@ class TestCompressImage:
     def test_resizes_large_image(self):
         """It resizes images larger than MAX_IMAGE_DIMENSION."""
         large_image = _create_test_image(2000, 1500, "RGB", "JPEG")
-        result = _compress_image(large_image, "image/jpeg")
+        data, media_type = _compress_image(large_image, "image/jpeg")
 
-        with Image.open(BytesIO(result)) as img:
+        with Image.open(BytesIO(data)) as img:
             assert img.width <= 1200
             assert img.height <= 1200
+        assert media_type == "image/jpeg"
 
     def test_preserves_small_image_dimensions(self):
         """It does not resize small images."""
         small_image = _create_test_image(800, 600, "RGB", "JPEG")
-        result = _compress_image(small_image, "image/jpeg")
+        data, media_type = _compress_image(small_image, "image/jpeg")
 
-        with Image.open(BytesIO(result)) as img:
+        with Image.open(BytesIO(data)) as img:
             assert img.width == 800
             assert img.height == 600
+        assert media_type == "image/jpeg"
 
     def test_handles_png_with_transparency(self):
         """It preserves PNG format for images with transparency."""
         rgba_image = _create_test_image(100, 100, "RGBA", "PNG")
-        result = _compress_image(rgba_image, "image/png")
+        data, media_type = _compress_image(rgba_image, "image/png")
 
-        with Image.open(BytesIO(result)) as img:
+        with Image.open(BytesIO(data)) as img:
             assert img.format == "PNG"
+        assert media_type == "image/png"
 
     def test_converts_opaque_png_to_jpeg(self):
         """It converts opaque PNG to JPEG."""
         rgb_png = _create_test_image(100, 100, "RGB", "PNG")
-        result = _compress_image(rgb_png, "image/png")
+        data, media_type = _compress_image(rgb_png, "image/png")
 
-        with Image.open(BytesIO(result)) as img:
+        with Image.open(BytesIO(data)) as img:
             assert img.format == "JPEG"
+        assert media_type == "image/jpeg"
+
+    def test_converts_tiff_to_jpeg(self):
+        """It converts TIFF to JPEG for EPUB compatibility."""
+        tiff_image = _create_test_image(100, 100, "RGB", "TIFF")
+        data, media_type = _compress_image(tiff_image, "image/tiff")
+
+        with Image.open(BytesIO(data)) as img:
+            assert img.format == "JPEG"
+        assert media_type == "image/jpeg"
 
     def test_returns_original_on_invalid_data(self):
         """It returns original content for invalid image data."""
         invalid_data = b"not an image"
-        result = _compress_image(invalid_data, "image/jpeg")
-        assert result == invalid_data
+        data, media_type = _compress_image(invalid_data, "image/jpeg")
+        assert data == invalid_data
+        assert media_type == "image/jpeg"
 
 
 @pytest.mark.asyncio
@@ -241,7 +269,9 @@ class TestEmailEpubBuilder:
             published=datetime.now(UTC),
             external_image_urls=["https://example.com/img.jpg"],
         )
-        external_images = {"https://example.com/img.jpg": test_image}
+        external_images = {
+            "https://example.com/img.jpg": (test_image, "image/jpeg"),
+        }
         output_path = tmp_path / "test.epub"
 
         builder = EmailEpubBuilder()
@@ -253,7 +283,7 @@ class TestEmailEpubBuilder:
         assert len(image_items) >= 1
 
     def test_sanitizes_html_content(self, tmp_path):
-        """It sanitizes HTML by removing script tags."""
+        """It sanitizes HTML by removing script tags and content."""
         email = EmailContent(
             title="Email with Script",
             html_body="<p>Hello</p><script>evil()</script>",
@@ -270,9 +300,30 @@ class TestEmailEpubBuilder:
             for item in book.get_items_of_type(ITEM_DOCUMENT)
         ]
         combined = "\n".join(docs)
-        # Script tags should be removed (the text content may remain but is harmless)
         assert "<script>" not in combined
-        assert "</script>" not in combined
+        assert "evil" not in combined
+
+    def test_strips_css_from_html_content(self, tmp_path):
+        """It strips CSS content from email HTML, not just style tags."""
+        email = EmailContent(
+            title="Email with CSS",
+            html_body=("<style>@media{.foo{color:red}}</style><p>Actual content</p>"),
+            published=datetime.now(UTC),
+        )
+        output_path = tmp_path / "test.epub"
+
+        builder = EmailEpubBuilder()
+        result = builder.build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        docs = [
+            item.get_content().decode()
+            for item in book.get_items_of_type(ITEM_DOCUMENT)
+        ]
+        combined = "\n".join(docs)
+        assert "@media" not in combined
+        assert "color:red" not in combined
+        assert "Actual content" in combined
 
     def test_creates_output_directory(self, tmp_path):
         """It creates output directory if it doesn't exist."""

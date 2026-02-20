@@ -125,8 +125,8 @@ def test_fetch_writes_actual_file(runner: CliRunner, sample_posts, tmp_path):
     ):
         mock_fetch.return_value = sample_posts
         mock_download.return_value = {
-            "https://example.com/image1.jpg": b"img1",
-            "https://example.com/image2.jpg": b"img2",
+            "https://example.com/image1.jpg": (b"img1", "image/jpeg"),
+            "https://example.com/image2.jpg": (b"img2", "image/jpeg"),
         }
 
         with runner.isolated_filesystem(temp_dir=tmp_path):

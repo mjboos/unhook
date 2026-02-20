@@ -68,9 +68,6 @@ ALLOWED_ATTRIBUTES = {
     "img": ["src", "alt", "width", "height"],
     "td": ["colspan", "rowspan"],
     "th": ["colspan", "rowspan"],
-    "span": ["style"],
-    "div": ["style"],
-    "p": ["style"],
 }
 
 
@@ -276,15 +273,9 @@ class EmailEpubBuilder:
                 file_name=chapter_filename,
                 lang=self.language,
             )
-            chapter.content = f"""
-            <html>
-            <head><title>{bleach.clean(chapter_title)}</title></head>
-            <body>
-            <h1>{bleach.clean(chapter_title)}</h1>
-            {sanitized_html}
-            </body>
-            </html>
-            """
+            chapter.content = (
+                f"<h1>{bleach.clean(chapter_title)}</h1>\n{sanitized_html}"
+            )
 
             book.add_item(chapter)
             chapters.append(chapter)

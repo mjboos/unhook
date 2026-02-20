@@ -56,7 +56,9 @@ async def test_export_recent_posts_to_epub(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(
         "unhook.epub_service.download_images",
-        AsyncMock(return_value={"https://example.com/image.jpg": b"img"}),
+        AsyncMock(
+            return_value={"https://example.com/image.jpg": (b"img", "image/jpeg")}
+        ),
     )
 
     output_path = await export_recent_posts_to_epub(tmp_path, file_prefix="test")
@@ -326,66 +328,81 @@ def _create_test_image(
 def test_compress_image_resizes_large_jpeg():
     """It resizes JPEG images larger than MAX_IMAGE_DIMENSION."""
     large_image = _create_test_image(2000, 1500, "RGB", "JPEG")
-    result = _compress_image(large_image, "image/jpeg")
+    data, media_type = _compress_image(large_image, "image/jpeg")
 
-    # Verify the result is smaller
-    with Image.open(BytesIO(result)) as img:
+    with Image.open(BytesIO(data)) as img:
         assert img.width <= 1200
         assert img.height <= 1200
+    assert media_type == "image/jpeg"
 
 
 def test_compress_image_preserves_small_jpeg():
     """It does not resize JPEG images smaller than MAX_IMAGE_DIMENSION."""
     small_image = _create_test_image(800, 600, "RGB", "JPEG")
-    result = _compress_image(small_image, "image/jpeg")
+    data, media_type = _compress_image(small_image, "image/jpeg")
 
-    with Image.open(BytesIO(result)) as img:
+    with Image.open(BytesIO(data)) as img:
         assert img.width == 800
         assert img.height == 600
+    assert media_type == "image/jpeg"
 
 
 def test_compress_image_handles_png_with_transparency():
     """It preserves PNG format for images with transparency."""
-    # Create RGBA image (with alpha channel)
     rgba_image = _create_test_image(100, 100, "RGBA", "PNG")
-    result = _compress_image(rgba_image, "image/png")
+    data, media_type = _compress_image(rgba_image, "image/png")
 
-    with Image.open(BytesIO(result)) as img:
+    with Image.open(BytesIO(data)) as img:
         assert img.format == "PNG"
+    assert media_type == "image/png"
 
 
 def test_compress_image_converts_opaque_png_to_jpeg():
     """It converts opaque PNG images to JPEG for better compression."""
     rgb_png = _create_test_image(100, 100, "RGB", "PNG")
-    result = _compress_image(rgb_png, "image/png")
+    data, media_type = _compress_image(rgb_png, "image/png")
 
-    with Image.open(BytesIO(result)) as img:
+    with Image.open(BytesIO(data)) as img:
         assert img.format == "JPEG"
+    assert media_type == "image/jpeg"
 
 
-def test_compress_image_handles_webp():
-    """It preserves WebP format."""
+def test_compress_image_converts_webp_to_jpeg():
+    """It converts WebP to JPEG for EPUB compatibility."""
     webp_image = _create_test_image(100, 100, "RGB", "WEBP")
-    result = _compress_image(webp_image, "image/webp")
+    data, media_type = _compress_image(webp_image, "image/webp")
 
-    with Image.open(BytesIO(result)) as img:
-        assert img.format == "WEBP"
+    with Image.open(BytesIO(data)) as img:
+        assert img.format == "JPEG"
+    assert media_type == "image/jpeg"
+
+
+def test_compress_image_converts_tiff_to_jpeg():
+    """It converts TIFF to JPEG for EPUB compatibility."""
+    tiff_image = _create_test_image(100, 100, "RGB", "TIFF")
+    data, media_type = _compress_image(tiff_image, "image/tiff")
+
+    with Image.open(BytesIO(data)) as img:
+        assert img.format == "JPEG"
+    assert media_type == "image/jpeg"
 
 
 def test_compress_image_returns_original_on_invalid_data():
     """It returns original content when image cannot be processed."""
     invalid_data = b"not an image"
-    result = _compress_image(invalid_data, "image/jpeg")
-    assert result == invalid_data
+    data, media_type = _compress_image(invalid_data, "image/jpeg")
+    assert data == invalid_data
+    assert media_type == "image/jpeg"
 
 
 def test_compress_image_uses_format_from_bytes_when_media_type_unknown():
     """It detects format from image bytes when media type is None."""
     jpeg_image = _create_test_image(100, 100, "RGB", "JPEG")
-    result = _compress_image(jpeg_image, None)
+    data, media_type = _compress_image(jpeg_image, None)
 
-    with Image.open(BytesIO(result)) as img:
+    with Image.open(BytesIO(data)) as img:
         assert img.format == "JPEG"
+    assert media_type == "image/jpeg"
 
 
 # Tests for _is_repost helper

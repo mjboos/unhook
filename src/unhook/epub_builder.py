@@ -68,7 +68,7 @@ class EpubBuilder:
     def build(
         self,
         posts: list[PostContent],
-        image_bytes: dict[str, bytes],
+        image_bytes: dict[str, tuple[bytes, str]],
         output_path: Path,
     ) -> Path:
         """Build an EPUB file from post content."""
@@ -83,13 +83,13 @@ class EpubBuilder:
             body_html = _sanitize_content(post.body)
             image_tags: list[str] = []
             for image_idx, image_url in enumerate(post.image_urls, start=1):
-                content = image_bytes.get(image_url)
-                if not content:
+                image_entry = image_bytes.get(image_url)
+                if not image_entry:
                     logger.warning("Missing bytes for image %s", image_url)
                     continue
 
+                content, media_type = image_entry
                 image_name = f"images/post_{idx}_{image_idx}"
-                media_type = _guess_media_type(image_url)
                 extension = mimetypes.guess_extension(media_type) or ".img"
                 file_name = f"{image_name}{extension}"
 

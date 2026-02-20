@@ -19,7 +19,9 @@ def test_epub_builder_creates_chapter_and_image(tmp_path):
 
     builder = EpubBuilder(title="Test Export")
     output = tmp_path / "output.epub"
-    builder.build([post], {"https://example.com/image.jpg": b"imgdata"}, output)
+    builder.build(
+        [post], {"https://example.com/image.jpg": (b"imgdata", "image/jpeg")}, output
+    )
 
     book = epub.read_epub(output)
     documents = list(book.get_items_of_type(ITEM_DOCUMENT))

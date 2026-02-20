@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+import re
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -73,8 +74,29 @@ ALLOWED_ATTRIBUTES = {
 }
 
 
+def _strip_non_body_content(html: str) -> str:
+    """Remove <head>, <style>, and <script> blocks including their content.
+
+    ``bleach.clean`` with ``strip=True`` removes disallowed *tags* but keeps
+    the text content inside them.  For ``<style>`` and ``<script>`` elements
+    that text is CSS / JS which should never appear as visible content in the
+    EPUB.  This helper removes both the tags and their inner text *before*
+    bleach processes the remaining markup.
+    """
+    # Remove <head>…</head> (contains <title>, <style>, <meta>, etc.)
+    html = re.sub(r"<head[\s>].*?</head>", "", html, flags=re.DOTALL | re.IGNORECASE)
+    # Remove all <style>…</style> blocks (may appear outside <head>)
+    html = re.sub(r"<style[\s>].*?</style>", "", html, flags=re.DOTALL | re.IGNORECASE)
+    # Remove all <script>…</script> blocks
+    html = re.sub(
+        r"<script[\s>].*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE
+    )
+    return html
+
+
 def _sanitize_email_html(html: str) -> str:
     """Sanitize HTML content for EPUB embedding."""
+    html = _strip_non_body_content(html)
     return bleach.clean(
         html,
         tags=ALLOWED_TAGS,
@@ -83,8 +105,12 @@ def _sanitize_email_html(html: str) -> str:
     )
 
 
-def _compress_image(content: bytes, media_type: str | None) -> bytes:
-    """Compress image for EPUB embedding."""
+def _compress_image(content: bytes, media_type: str | None) -> tuple[bytes, str]:
+    """Compress image for EPUB embedding.
+
+    Returns a ``(bytes, media_type)`` tuple.  The output is always in an
+    EPUB-compatible format (JPEG, PNG, or GIF).
+    """
     try:
         with Image.open(BytesIO(content)) as image:
             image.load()
@@ -92,39 +118,25 @@ def _compress_image(content: bytes, media_type: str | None) -> bytes:
                 image.thumbnail((MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION))
 
             output = BytesIO()
-            image_format = (image.format or "").upper()
+            has_transparency = image.mode in {"RGBA", "LA"} or (
+                "transparency" in image.info
+            )
 
-            if media_type == "image/jpeg" or image_format in {"JPEG", "JPG"}:
-                image.convert("RGB").save(
-                    output, format="JPEG", quality=JPEG_QUALITY, optimize=True
-                )
-                return output.getvalue()
+            if has_transparency:
+                image.save(output, format="PNG", optimize=True)
+                return output.getvalue(), "image/png"
 
-            if media_type == "image/png" or image_format == "PNG":
-                if image.mode in {"RGBA", "LA"} or "transparency" in image.info:
-                    image.save(output, format="PNG", optimize=True)
-                else:
-                    image.convert("RGB").save(
-                        output, format="JPEG", quality=JPEG_QUALITY, optimize=True
-                    )
-                return output.getvalue()
-
-            if media_type == "image/webp" or image_format == "WEBP":
-                image.save(output, format="WEBP", quality=JPEG_QUALITY, method=6)
-                return output.getvalue()
-
-            # Default: try to save as JPEG
             image.convert("RGB").save(
                 output, format="JPEG", quality=JPEG_QUALITY, optimize=True
             )
-            return output.getvalue()
+            return output.getvalue(), "image/jpeg"
 
     except (UnidentifiedImageError, OSError) as exc:
         logger.warning("Failed to compress image: %s", exc)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Unexpected error compressing image: %s", exc)
 
-    return content
+    return content, media_type or "image/jpeg"
 
 
 async def _download_image(client: httpx.AsyncClient, url: str) -> bytes | None:
@@ -138,16 +150,18 @@ async def _download_image(client: httpx.AsyncClient, url: str) -> bytes | None:
         return None
 
 
-async def download_external_images(urls: list[str]) -> dict[str, bytes]:
+async def download_external_images(
+    urls: list[str],
+) -> dict[str, tuple[bytes, str]]:
     """Download external images concurrently.
 
     Args:
         urls: List of image URLs to download.
 
     Returns:
-        Mapping from URL to image bytes.
+        Mapping from URL to ``(image_bytes, media_type)`` tuples.
     """
-    results: dict[str, bytes] = {}
+    results: dict[str, tuple[bytes, str]] = {}
     unique_urls = list(set(url for url in urls if url))
 
     if not unique_urls:
@@ -185,14 +199,14 @@ class EmailEpubBuilder:
     def build(
         self,
         emails: list[EmailContent],
-        external_images: dict[str, bytes],
+        external_images: dict[str, tuple[bytes, str]],
         output_path: Path,
     ) -> Path:
         """Build an EPUB file from email content.
 
         Args:
             emails: List of EmailContent to include.
-            external_images: Mapping of URL to image bytes for external images.
+            external_images: Mapping of URL to ``(bytes, media_type)`` tuples.
             output_path: Path to write the EPUB file.
 
         Returns:
@@ -218,8 +232,8 @@ class EmailEpubBuilder:
             # Handle inline images (CID references)
             for cid, image_bytes in email_content.inline_images.items():
                 image_counter += 1
-                media_type = _guess_media_type(cid)
-                compressed = _compress_image(image_bytes, media_type)
+                guessed_type = _guess_media_type(cid)
+                compressed, media_type = _compress_image(image_bytes, guessed_type)
                 filename = _generate_image_filename("inline", image_counter, media_type)
 
                 image_item = epub.EpubItem(
@@ -235,7 +249,7 @@ class EmailEpubBuilder:
             for url in email_content.external_image_urls:
                 if url in external_images:
                     image_counter += 1
-                    media_type = _guess_media_type(url)
+                    image_data, media_type = external_images[url]
                     filename = _generate_image_filename(
                         "ext", image_counter, media_type
                     )
@@ -244,7 +258,7 @@ class EmailEpubBuilder:
                         uid=f"img_{image_counter}",
                         file_name=filename,
                         media_type=media_type,
-                        content=external_images[url],
+                        content=image_data,
                     )
                     book.add_item(image_item)
                     url_to_filename[url] = filename

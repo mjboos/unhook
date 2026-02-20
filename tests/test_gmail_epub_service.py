@@ -13,6 +13,8 @@ from unhook.gmail_epub_service import (
     EmailEpubBuilder,
     _compress_image,
     _sanitize_email_html,
+    _strip_email_boilerplate,
+    _strip_small_images,
     download_external_images,
     export_gmail_to_epub,
 )
@@ -76,13 +78,35 @@ class TestSanitizeEmailHtml:
         assert 'src="image.jpg"' in result
         assert 'alt="Test"' in result
 
-    def test_preserves_tables(self):
-        """It preserves table elements."""
+    def test_strips_table_layout_but_keeps_content(self):
+        """It strips table tags (email layout) but preserves cell text."""
         html = "<table><tr><td>Cell</td></tr></table>"
         result = _sanitize_email_html(html)
-        assert "<table>" in result
-        assert "<tr>" in result
-        assert "<td>" in result
+        assert "<table>" not in result
+        assert "<tr>" not in result
+        assert "<td>" not in result
+        assert "Cell" in result
+
+    def test_strips_small_images(self):
+        """It removes tracking pixels and small icon images."""
+        html = '<img src="track.png" width="1" height="1"><p>Keep</p>'
+        result = _sanitize_email_html(html)
+        assert "track.png" not in result
+        assert "Keep" in result
+
+    def test_keeps_large_images(self):
+        """It preserves content images with large dimensions."""
+        html = '<img src="photo.jpg" width="550" height="300">'
+        result = _sanitize_email_html(html)
+        assert "photo.jpg" in result
+
+    def test_strips_width_height_from_images(self):
+        """It removes width/height attributes from images for Kindle reflow."""
+        html = '<img src="photo.jpg" width="550" height="300">'
+        result = _sanitize_email_html(html)
+        assert 'width="550"' not in result
+        assert 'height="300"' not in result
+        assert 'src="photo.jpg"' in result
 
     def test_preserves_lists(self):
         """It preserves list elements."""
@@ -90,6 +114,70 @@ class TestSanitizeEmailHtml:
         result = _sanitize_email_html(html)
         assert "<ul>" in result
         assert "<li>" in result
+
+
+class TestStripSmallImages:
+    """Tests for _strip_small_images function."""
+
+    def test_strips_1x1_tracking_pixel(self):
+        html = '<img src="pixel.png" width="1" height="1">'
+        assert "pixel.png" not in _strip_small_images(html)
+
+    def test_strips_icon_sized_images(self):
+        html = '<img src="icon.png" width="18" height="18">'
+        assert "icon.png" not in _strip_small_images(html)
+
+    def test_keeps_content_images(self):
+        html = '<img src="photo.jpg" width="550" height="300">'
+        assert "photo.jpg" in _strip_small_images(html)
+
+    def test_keeps_images_without_dimensions(self):
+        html = '<img src="photo.jpg" alt="test">'
+        assert "photo.jpg" in _strip_small_images(html)
+
+    def test_strips_when_one_dimension_present_and_small(self):
+        html = '<img src="spacer.gif" width="1">'
+        assert "spacer.gif" not in _strip_small_images(html)
+
+    def test_keeps_image_with_one_large_dimension(self):
+        html = '<img src="banner.jpg" width="550">'
+        assert "banner.jpg" in _strip_small_images(html)
+
+
+class TestStripEmailBoilerplate:
+    """Tests for _strip_email_boilerplate function."""
+
+    def test_strips_forwarded_email_subscribe(self):
+        html = 'Forwarded this email? <a href="#">Subscribe here</a> for more'
+        result = _strip_email_boilerplate(html)
+        assert "Forwarded this email" not in result
+        assert "Subscribe here" not in result
+
+    def test_strips_read_in_app(self):
+        html = '<a href="https://example.com"><span>READ IN APP</span></a>'
+        result = _strip_email_boilerplate(html)
+        assert "READ IN APP" not in result
+
+    def test_strips_upgrade_to_paid(self):
+        html = '<a href="#"><span>Upgrade to paid</span></a>'
+        result = _strip_email_boilerplate(html)
+        assert "Upgrade to paid" not in result
+
+    def test_strips_unsubscribe(self):
+        html = '<a href="https://example.com/unsub"><span>Unsubscribe</span></a>'
+        result = _strip_email_boilerplate(html)
+        assert "Unsubscribe" not in result
+
+    def test_strips_zero_width_spacer_divs(self):
+        html = "<div>\u200f \u00ad\u200f \u00ad</div><p>Content</p>"
+        result = _strip_email_boilerplate(html)
+        assert "<p>Content</p>" in result
+        assert "\u200f" not in result
+
+    def test_preserves_article_content(self):
+        html = "<p>This is the actual article content about technology.</p>"
+        result = _strip_email_boilerplate(html)
+        assert "actual article content" in result
 
 
 class TestCompressImage:

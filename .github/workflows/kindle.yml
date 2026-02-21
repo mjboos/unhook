@@ -1,6 +1,8 @@
 name: Send EPUB to Kindle
 
 on:
+  schedule:
+    - cron: "0 18 * * 6"  # Saturday at 18:00 UTC (evening CET)
   workflow_dispatch:
     inputs:
       limit:
@@ -18,6 +20,8 @@ jobs:
     env:
       BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
       BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+      LIMIT: ${{ inputs.limit || '1000' }}
+      SINCE_DAYS: ${{ inputs.since_days || '7' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,14 +37,14 @@ jobs:
       - name: Fetch Bluesky feed
         run: |
           uv run python -m unhook.cmd fetch \
-            --limit "${{ github.event.inputs.limit }}" \
-            --since-days "${{ github.event.inputs.since_days }}" \
+            --limit "$LIMIT" \
+            --since-days "$SINCE_DAYS" \
             --output "kindle_feed.parquet"
 
       - name: Export EPUB
         run: |
           uv run python -m unhook.cmd export-epub \
-            --limit "${{ github.event.inputs.limit }}" \
+            --limit "$LIMIT" \
             --file-prefix kindle
 
       - name: Send EPUB via email

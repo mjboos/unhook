@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -155,3 +155,65 @@ def test_fetch_writes_actual_file(runner: CliRunner, sample_posts, tmp_path):
             combined_html = "\n".join(html_docs)
             assert "Test post 1" in combined_html
             assert "Test post 2" in combined_html
+
+
+class TestGmailToKindle:
+    """Tests for the gmail-to-kindle CLI command."""
+
+    def test_missing_gmail_address(self, runner: CliRunner):
+        """It exits with error when Gmail address is not provided."""
+        result = runner.invoke(app, ["gmail-to-kindle"])
+        assert result.exit_code == 1
+        assert "Gmail address required" in result.output
+
+    def test_missing_app_password(self, runner: CliRunner):
+        """It exits with error when app password is not provided."""
+        result = runner.invoke(
+            app, ["gmail-to-kindle", "--gmail-address", "test@gmail.com"]
+        )
+        assert result.exit_code == 1
+        assert "App password required" in result.output
+
+    def test_successful_export(self, runner: CliRunner, tmp_path):
+        """It exports emails to EPUB successfully."""
+        mock_export = AsyncMock(return_value=tmp_path / "newsletters.epub")
+        with patch.dict(
+            "sys.modules",
+            {"unhook.gmail_epub_service": MagicMock(export_gmail_to_epub=mock_export)},
+        ):
+            with runner.isolated_filesystem(temp_dir=tmp_path):
+                result = runner.invoke(
+                    app,
+                    [
+                        "gmail-to-kindle",
+                        "--gmail-address",
+                        "test@gmail.com",
+                        "--gmail-app-password",
+                        "app-pass",
+                    ],
+                )
+
+            assert result.exit_code == 0
+            assert "Saved EPUB" in result.output
+
+    def test_no_emails_found(self, runner: CliRunner, tmp_path):
+        """It reports when no emails match criteria."""
+        mock_export = AsyncMock(return_value=None)
+        with patch.dict(
+            "sys.modules",
+            {"unhook.gmail_epub_service": MagicMock(export_gmail_to_epub=mock_export)},
+        ):
+            with runner.isolated_filesystem(temp_dir=tmp_path):
+                result = runner.invoke(
+                    app,
+                    [
+                        "gmail-to-kindle",
+                        "--gmail-address",
+                        "test@gmail.com",
+                        "--gmail-app-password",
+                        "app-pass",
+                    ],
+                )
+
+            assert result.exit_code == 0
+            assert "No emails found" in result.output

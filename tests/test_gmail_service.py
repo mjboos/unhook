@@ -1,6 +1,10 @@
 """Tests for the Gmail IMAP service."""
 
+import email
 from datetime import UTC, datetime
+from email.mime.image import MIMEImage
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -243,3 +247,257 @@ class TestRawEmailDataclass:
         )
         assert raw.html_body is None
         assert raw.text_body is None
+
+
+def _build_mime_email(
+    subject="Test Subject",
+    sender="sender@example.com",
+    date="Mon, 01 Jan 2024 12:00:00 +0000",
+    html_body=None,
+    text_body=None,
+    inline_images=None,
+):
+    """Build a real MIME email message for testing."""
+    if html_body or text_body or inline_images:
+        msg = MIMEMultipart("related")
+        if text_body:
+            msg.attach(MIMEText(text_body, "plain"))
+        if html_body:
+            msg.attach(MIMEText(html_body, "html"))
+        for cid, img_bytes in (inline_images or {}).items():
+            img_part = MIMEImage(img_bytes, _subtype="png")
+            img_part.add_header("Content-ID", f"<{cid}>")
+            msg.attach(img_part)
+    else:
+        msg = MIMEText("fallback", "plain")
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["Date"] = date
+    return msg
+
+
+class TestFetchSingleEmail:
+    """Tests for _fetch_single_email."""
+
+    def test_fetch_single_email_success(self, gmail_config):
+        """It parses a single email from IMAP fetch response."""
+        mime_msg = _build_mime_email(html_body="<p>Hello</p>")
+        raw_bytes = mime_msg.as_bytes()
+
+        service = GmailService(gmail_config)
+        service._connection = MagicMock()
+        service._connection.fetch.return_value = (
+            "OK",
+            [(b"1 (UID 42 RFC822 {1000}", raw_bytes), b")"],
+        )
+
+        result = service._fetch_single_email(b"1")
+
+        assert result is not None
+        assert result.uid == "42"
+        assert result.subject == "Test Subject"
+        assert result.sender == "sender@example.com"
+        assert result.html_body is not None
+        assert "<p>Hello</p>" in result.html_body
+
+    def test_fetch_single_email_not_connected(self, gmail_config):
+        """It returns None when not connected."""
+        service = GmailService(gmail_config)
+        assert service._fetch_single_email(b"1") is None
+
+    def test_fetch_single_email_bad_status(self, gmail_config):
+        """It returns None on non-OK status."""
+        service = GmailService(gmail_config)
+        service._connection = MagicMock()
+        service._connection.fetch.return_value = ("NO", [])
+
+        assert service._fetch_single_email(b"1") is None
+
+    def test_fetch_single_email_no_raw_bytes(self, gmail_config):
+        """It returns None when data has no tuple with bytes."""
+        service = GmailService(gmail_config)
+        service._connection = MagicMock()
+        service._connection.fetch.return_value = ("OK", [b"not a tuple"])
+
+        assert service._fetch_single_email(b"1") is None
+
+
+class TestParseEmailMessage:
+    """Tests for _parse_email_message."""
+
+    def test_parse_multipart_html(self, gmail_config):
+        """It extracts HTML body from multipart email."""
+        mime_msg = _build_mime_email(
+            html_body="<p>Newsletter content</p>",
+            text_body="Plain text version",
+        )
+
+        service = GmailService(gmail_config)
+        result = service._parse_email_message(
+            "100", email.message_from_bytes(mime_msg.as_bytes())
+        )
+
+        assert result.uid == "100"
+        assert result.html_body is not None
+        assert "Newsletter content" in result.html_body
+        assert result.text_body is not None
+        assert "Plain text version" in result.text_body
+
+    def test_parse_multipart_with_inline_images(self, gmail_config):
+        """It extracts inline images by Content-ID."""
+        img_bytes = b"\x89PNG\r\n\x1a\nfake"
+        mime_msg = _build_mime_email(
+            html_body="<img src='cid:logo123'>",
+            inline_images={"logo123": img_bytes},
+        )
+
+        service = GmailService(gmail_config)
+        result = service._parse_email_message(
+            "101", email.message_from_bytes(mime_msg.as_bytes())
+        )
+
+        assert "logo123" in result.inline_images
+        assert result.inline_images["logo123"] == img_bytes
+
+    def test_parse_multipart_skips_attachments(self, gmail_config):
+        """It skips parts with attachment disposition."""
+        msg = MIMEMultipart()
+        msg.attach(MIMEText("<p>Body</p>", "html"))
+        attachment = MIMEText("attached file", "plain")
+        attachment.add_header("Content-Disposition", "attachment", filename="file.txt")
+        msg.attach(attachment)
+        msg["Subject"] = "Test"
+        msg["From"] = "test@example.com"
+        msg["Date"] = "Mon, 01 Jan 2024 12:00:00 +0000"
+
+        service = GmailService(gmail_config)
+        result = service._parse_email_message(
+            "102", email.message_from_bytes(msg.as_bytes())
+        )
+
+        assert result.html_body is not None
+        assert "Body" in result.html_body
+
+    def test_parse_non_multipart_html(self, gmail_config):
+        """It handles non-multipart HTML email."""
+        msg = MIMEText("<p>Simple HTML</p>", "html")
+        msg["Subject"] = "Simple"
+        msg["From"] = "test@example.com"
+        msg["Date"] = "Mon, 01 Jan 2024 12:00:00 +0000"
+
+        service = GmailService(gmail_config)
+        result = service._parse_email_message(
+            "103", email.message_from_bytes(msg.as_bytes())
+        )
+
+        assert result.html_body is not None
+        assert "Simple HTML" in result.html_body
+        assert result.text_body is None
+
+    def test_parse_non_multipart_plain_text(self, gmail_config):
+        """It handles non-multipart plain text email."""
+        msg = MIMEText("Plain text only", "plain")
+        msg["Subject"] = "Plain"
+        msg["From"] = "test@example.com"
+        msg["Date"] = "Mon, 01 Jan 2024 12:00:00 +0000"
+
+        service = GmailService(gmail_config)
+        result = service._parse_email_message(
+            "104", email.message_from_bytes(msg.as_bytes())
+        )
+
+        assert result.text_body is not None
+        assert "Plain text only" in result.text_body
+        assert result.html_body is None
+
+
+class TestDecodePayload:
+    """Tests for _decode_payload."""
+
+    def test_decode_payload_utf8(self, gmail_config):
+        """It decodes UTF-8 payloads."""
+        part = MIMEText("Hello world", "plain", "utf-8")
+        service = GmailService(gmail_config)
+        result = service._decode_payload(part)
+        assert "Hello world" in result
+
+    def test_decode_payload_empty(self, gmail_config):
+        """It returns empty string for empty payload."""
+        part = MagicMock()
+        part.get_payload.return_value = None
+        part.get_content_charset.return_value = "utf-8"
+        service = GmailService(gmail_config)
+        assert service._decode_payload(part) == ""
+
+
+class TestFetchEmailsByLabelLoop:
+    """Tests for the fetch loop in fetch_emails_by_label."""
+
+    def test_fetch_emails_returns_parsed_emails(self, gmail_config):
+        """It fetches and returns parsed emails from message IDs."""
+        mime_msg = _build_mime_email(html_body="<p>Newsletter</p>")
+        raw_bytes = mime_msg.as_bytes()
+
+        with patch("unhook.gmail_service.imaplib.IMAP4_SSL") as mock_imap:
+            mock_conn = MagicMock()
+            mock_conn.select.return_value = ("OK", [b"1"])
+            mock_conn.search.return_value = ("OK", [b"1 2"])
+            mock_conn.fetch.return_value = (
+                "OK",
+                [(b"1 (UID 10 RFC822 {1000}", raw_bytes), b")"],
+            )
+            mock_imap.return_value = mock_conn
+
+            with GmailService(gmail_config) as service:
+                result = service.fetch_emails_by_label(since_days=7)
+
+            assert len(result) == 2
+            assert all(isinstance(r, RawEmail) for r in result)
+
+    def test_fetch_emails_skips_failed_messages(self, gmail_config):
+        """It continues past individual email fetch failures."""
+        mime_msg = _build_mime_email(html_body="<p>Good</p>")
+        raw_bytes = mime_msg.as_bytes()
+
+        with patch("unhook.gmail_service.imaplib.IMAP4_SSL") as mock_imap:
+            mock_conn = MagicMock()
+            mock_conn.select.return_value = ("OK", [b"1"])
+            mock_conn.search.return_value = ("OK", [b"1 2"])
+            # First fetch raises, second succeeds
+            mock_conn.fetch.side_effect = [
+                Exception("IMAP error"),
+                ("OK", [(b"2 (UID 20 RFC822 {500}", raw_bytes), b")"]),
+            ]
+            mock_imap.return_value = mock_conn
+
+            with GmailService(gmail_config) as service:
+                result = service.fetch_emails_by_label(since_days=7)
+
+            assert len(result) == 1
+
+    def test_fetch_emails_skips_none_results(self, gmail_config):
+        """It skips emails that parse to None."""
+        with patch("unhook.gmail_service.imaplib.IMAP4_SSL") as mock_imap:
+            mock_conn = MagicMock()
+            mock_conn.select.return_value = ("OK", [b"1"])
+            mock_conn.search.return_value = ("OK", [b"1"])
+            mock_conn.fetch.return_value = ("NO", [])
+            mock_imap.return_value = mock_conn
+
+            with GmailService(gmail_config) as service:
+                result = service.fetch_emails_by_label(since_days=7)
+
+            assert result == []
+
+    def test_disconnect_swallows_logout_exception(self, gmail_config):
+        """It swallows exceptions during logout."""
+        with patch("unhook.gmail_service.imaplib.IMAP4_SSL") as mock_imap:
+            mock_conn = MagicMock()
+            mock_conn.logout.side_effect = OSError("connection reset")
+            mock_imap.return_value = mock_conn
+
+            service = GmailService(gmail_config)
+            service.connect()
+            service.disconnect()  # Should not raise
+
+            assert service._connection is None

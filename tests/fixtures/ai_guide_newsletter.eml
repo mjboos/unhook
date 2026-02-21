@@ -1,0 +1,2347 @@
+Delivered-To: moritz.boos@gmail.com
+Received: by 2002:a05:651c:400a:b0:388:103c:e2a0 with SMTP id 10csp2061650ljl;
+        Tue, 17 Feb 2026 17:45:55 -0800 (PST)
+X-Received: by 2002:ac8:58d6:0:b0:4ed:bb39:9a67 with SMTP id d75a77b69052e-506b401fdbemr162219051cf.60.1771379155137;
+        Tue, 17 Feb 2026 17:45:55 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1771379155; cv=none;
+        d=google.com; s=arc-20240605;
+        b=hcT0reNXPOXaWwCyjHmpq9F2kwX5aVSSHn/X41bEPjOjTs5UK9MnXN4E9rYBcBKXFm
+         RfuExMhFu+Q/+BMrHkdxtLygJSVRzl8vQhfIy52zkHVYe8kRFKFYA/YBFFWcxy8KcWUW
+         zlRtuuD1q4jrEC2z8YKizvKbKMNDY37L6CCCWsS1BK7HSZHS5Mn+wfu+LHnbM3IUVvcb
+         i9ZplBEVboNfSD0UCmutVQ8sK1hbP8uQVI4lyjPO83jhUP8c0DUDPBd9qZuCpavs5Sk0
+         ftseVhLCfh2dBf7Oqo3tUl3nMIYIMAfrHCDb8pp6haoT/GZXy5NWG0yXdTrFYlF31WhM
+         /P4w==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=list-unsubscribe-post:list-unsubscribe:list-post:list-id
+         :list-archive:list-url:list-owner:reply-to:in-reply-to:references
+         :sender:feedback-id:date:message-id:to:from:subject:mime-version
+         :dkim-signature:dkim-signature;
+        bh=ZI9ZtM7Ufyf2RY5SYxNxN66kJQnG4QNcnVaC+iF/CR8=;
+        fh=KFdfU+vyf+GSA6F2TwO+HRmGq8Ff9g+HK2dN4P3l3OY=;
+        b=RIKpGmkT6eBWg3YIyWPgZitT70QivIzTg83Vc5E8K9ZQ/PwzyFc0qSRnavMTIL1Ro/
+         +95FW/DrajMy3ZLV7cqN2zmnCyPLnXvHqM6K+IddvfKk5mDyXSfk2ZKS5SESHEeTaQ1v
+         QBJkifu5LLB+4EUVjhRNyJ0HXejy/QmkHxx7dLtMS6wjbbzY81YwrntEmL9GAWANacKc
+         NZ3VDkS3Lyqhnqf9ThWFaEkcPBgPmj5ODJlDZgAhlR6aE7y8jDAEUilWil6irZ4lMyAN
+         osexuYcKlsIa3z7myLC1rupgG9+x4jCr17mILUC3cEbcoy2ZqLlGJ/rNjRb0FGunEcTX
+         fe2Q==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@mg-d0.substack.com header.s=mailo header.b=qt4IGAGl;
+       dkim=pass header.i=@mailgun.org header.s=mg header.b=e9eBRgQX;
+       spf=pass (google.com: domain of bounce+3ef6e8.63af5d-moritz.boos=gmail.com@mg-d0.substack.com designates 159.112.244.10 as permitted sender) smtp.mailfrom="bounce+3ef6e8.63af5d-moritz.boos=gmail.com@mg-d0.substack.com";
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=substack.com
+Return-Path: <bounce+3ef6e8.63af5d-moritz.boos=gmail.com@mg-d0.substack.com>
+Received: from v510.v5375b7fa.use4.send.mailgun.net (v510.v5375b7fa.use4.send.mailgun.net. [159.112.244.10])
+        by mx.google.com with UTF8SMTPS id d75a77b69052e-50698c4228esi197371551cf.48.2026.02.17.17.45.54
+        for <moritz.boos@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-ECDSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Feb 2026 17:45:55 -0800 (PST)
+Received-SPF: pass (google.com: domain of bounce+3ef6e8.63af5d-moritz.boos=gmail.com@mg-d0.substack.com designates 159.112.244.10 as permitted sender) client-ip=159.112.244.10;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@mg-d0.substack.com header.s=mailo header.b=qt4IGAGl;
+       dkim=pass header.i=@mailgun.org header.s=mg header.b=e9eBRgQX;
+       spf=pass (google.com: domain of bounce+3ef6e8.63af5d-moritz.boos=gmail.com@mg-d0.substack.com designates 159.112.244.10 as permitted sender) smtp.mailfrom="bounce+3ef6e8.63af5d-moritz.boos=gmail.com@mg-d0.substack.com";
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=substack.com
+DKIM-Signature: a=rsa-sha256; v=1; c=relaxed/relaxed; d=mg-d0.substack.com; q=dns/txt; s=mailo; t=1771379154; x=1771386354;
+ h=List-Unsubscribe-Post: List-Unsubscribe: List-Post: List-Id: List-Archive: List-Owner: Reply-To: In-Reply-To: References: Sender: Sender: Date: Message-Id: To: To: From: From: Subject: Subject: Content-Type: Mime-Version: X-Feedback-Id;
+ bh=ZI9ZtM7Ufyf2RY5SYxNxN66kJQnG4QNcnVaC+iF/CR8=;
+ b=qt4IGAGlgolEL+MBj+eR5QBwSXEY2ntDIHoa1XtFu4Hy4U51zH/ezZcyl0CxWBhrW0xx39qEAcMNXYgaytyX9edaA91B6iDbh7l0MM/L6twny2URhyw/S5XTQ89X++uE0fxJin2jWomu0gVYfMbv8JHTnLC7BnmEqcMczEw738o=
+DKIM-Signature: a=rsa-sha256; v=1; c=relaxed/relaxed; d=mailgun.org; q=dns/txt; s=mg; t=1771379154; x=1771386354;
+ h=List-Unsubscribe-Post: List-Unsubscribe: List-Post: List-Id: List-Archive: List-Owner: Reply-To: In-Reply-To: References: Sender: Sender: Date: Message-Id: To: To: From: From: Subject: Subject: Content-Type: Mime-Version: X-Feedback-Id;
+ bh=ZI9ZtM7Ufyf2RY5SYxNxN66kJQnG4QNcnVaC+iF/CR8=;
+ b=e9eBRgQXc4QRoyHAkQ95T+aHiqQGJnurPoJbnZOnA3hX0DCJLRz20wUA63oWItlElVUNSvg1650xjS01fscdE2pPtcdV1KTMxrccOhPBxIPRgfaxCKiJ94rCGRT1AvJ3FW6nnizIgSucJSO7LNtNkbwPgMTM6CurKzndw46qgcM=
+X-Mailgun-Sid: WyJkY2YyNyIsIm1vcml0ei5ib29zQGdtYWlsLmNvbSIsIjYzYWY1ZCJd
+X-Feedback-Id: postmaster@mg-d0.substack.com:post:6148c7d8a45790427cda307f:mailgun
+Received: by 30b3766b642872249fd355162a64ebf4b7788214a8f4f75c415a11ad978ca540 with HTTP
+ id 699519d27e718d21a491f327; Wed, 18 Feb 2026 01:45:54 GMT
+X-Mailgun-Sending-Ip: 159.112.244.10
+X-Mailgun-Batch-Id: 699519d21ef92bcfe0cfc753
+Mime-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="590486959885784771fdf7df9fcd18015c6b194f67c00b9d7bc80e33ff77"
+Subject: A Guide to Which AI to Use in the Agentic Era
+From: Ethan Mollick from One Useful Thing <oneusefulthing@substack.com>
+To: moritz.boos@gmail.com
+X-Mailgun-Tag: post
+X-Mailgun-Track-Clicks: false
+Message-Id: <20260218014541.3.89cf7d98e18881ad@mg-d0.substack.com>
+Date: Wed, 18 Feb 2026 01:45:41 +0000
+Feedback-Id: post-188100833:cat-post:pub-1180644:substack
+Sender: Ethan Mollick from One Useful Thing <oneusefulthing@substack.com>
+References: <post-188100833@substack.com>
+In-Reply-To: <post-188100833@substack.com>
+Reply-To: Ethan Mollick from One Useful Thing
+ <reply+33znj5&f8zai&&56a21797d1947c058f44ddf40c3e6d38188dd19eeed6af920e1bf6cef89a44af@mg1.substack.com>
+List-Owner: <mailto:oneusefulthing@substack.com>
+List-Url: <https://www.oneusefulthing.org/>
+List-Archive: <https://www.oneusefulthing.org/archive>
+List-Id: <oneusefulthing.substack.com>
+List-Post: <https://www.oneusefulthing.org/p/a-guide-to-which-ai-to-use-in-the>
+List-Unsubscribe: <https://www.oneusefulthing.org/action/disable_email/disable?token=REDACTED&all_sections=true>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+X-Mailgun-Variables: {"category": "post", "email_generated_at": "1771379154489", "is_freemail":
+ "true", "post_audience": "everyone", "post_id": "188100833", "post_type":
+ "newsletter", "pub_community_enabled": "true", "publication_id": "1180644",
+ "subdomain": "oneusefulthing", "user_id": "25613226"}
+
+--590486959885784771fdf7df9fcd18015c6b194f67c00b9d7bc80e33ff77
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+View this post on the web at https://www.oneusefulthing.org/p/a-guide-to-wh=
+ich-ai-to-use-in-the
+
+I have written eight of these guides since ChatGPT came out, but this versi=
+on represents a very large break with the past, because what it means to =
+=E2=80=9Cuse AI=E2=80=9D has changed dramatically. Until a few months ago, =
+for the vast majority of people, =E2=80=9Cusing AI=E2=80=9D meant talking t=
+o a chatbot in a back-and-forth conversation. But over the past few months,=
+ it has become practical to use AI as an agent: you can assign them to a ta=
+sk and they do them, using tools as appropriate. Because of this change, yo=
+u have to consider three things when deciding what AI to use: Models, Apps,=
+ and Harnesses.
+Models are the underlying AI brains, and the big three are GPT-5.2/5.3, Cla=
+ude Opus 4.6, and Gemini 3 Pro (the companies are releasing new models much=
+ more rapidly than the past, so version numbers may change in the coming we=
+eks). These are what determine how smart the system is, how well it reasons=
+, how good it is at writing or coding or analyzing a spreadsheet, and how w=
+ell it can see images or create them. Models are what the benchmarks measur=
+e and what the AI companies race to improve. When people say =E2=80=9CClaud=
+e is better at writing=E2=80=9D or =E2=80=9CChatGPT is better at math,=E2=
+=80=9D they=E2=80=99re talking about models.
+Apps are the products you actually use to talk to a model, and which let mo=
+dels do real work for you. The most common app is the website for each of t=
+hese models: chatgpt.com, claude.ai, gemini.google.com (or else their equiv=
+alent application on your phone). Increasingly, there are other apps made b=
+y each of these AI companies as well, including coding tools like OpenAI Co=
+dex or Claude Code, [ https://substack.com/redirect/9c3d4b93-365b-41a5-b387=
+-47b16288fa32?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7=
+mo2IM ] and desktop tools like Claude Cowork.=20
+Harnesses are what let the power of AI models do real work, like a horse ha=
+rness takes the raw power of the horse and lets it pull a cart or plow. A h=
+arness is a system that lets the AI use tools, take actions, and complete m=
+ulti-step tasks on its own. Apps come with a harness. Claude on the website=
+ has a harness that lets Claude 4.6 Opus do web searches and write code but=
+ also has instructions about how to approach various problems like creating=
+ spreadsheets or doing graphic design work. Claude Code has an even more ex=
+tensive harness: it gives Claude 4.6 Opus a virtual computer, a web browser=
+, a code terminal, and the ability to string these together to actually do =
+stuff like researching, building, and testing your new website from scratch=
+=2E Manus (recently acquired by Meta) w=
+as essentially a standalone harness th=
+at could wrap around multiple models. OpenClaw, which made big news recentl=
+y, is mostly a harness that allows you to use any AI model locally on your =
+computer.=20
+Until recently, you didn=E2=80=99t have to know this. The model was the pro=
+duct, the app was the website, and the harness was minimal. You typed, it r=
+esponded, you typed again. Now the same model can behave very differently d=
+epending on what harness it=E2=80=99s operating in. Claude Opus 4.6 talking=
+ to you in a chat window is a very different experience from Claude Opus 4.=
+6 operating inside Claude Code, autonomously writing and testing software f=
+or hours at a stretch. GPT-5.2 answering a question is a very different exp=
+erience from GPT-5.2 Thinking navigating websites and building you a slide =
+deck.
+It means that the question =E2=80=9Cwhich AI should I use?=E2=80=9D has got=
+ten harder to answer, because the answer now depends on what you=E2=80=99re=
+ trying to do with it. So let me walk through the landscape.
+The Models Right Now
+The top models are remarkably close in overall capability and are generally=
+ =E2=80=9Csmarter=E2=80=9D and make fewer errors than ever. But, if you wan=
+t to use an advanced AI seriously, you=E2=80=99ll need to pay at least $20 =
+a month (though some areas of the world have alternate plans that charge le=
+ss). Those $20 get you two things: a choice of which model to use and the a=
+bility to use the more advanced frontier models and apps. I wish I could te=
+ll you the free models currently available are as good as the paid models, =
+but they are not. The free models are all optimized for chat, rather than a=
+ccuracy, so they are very fast and often more fun to talk to, but much less=
+ accurate and capable. Often, when someone posts an example of an AI doing =
+something stupid, it is because they are either using the free models or be=
+cause they have not selected a smarter model to work with.
+The big three frontier models are Claude Opus 4.6  [ https://substack.com/r=
+edirect/2c8c5c33-f480-431d-b866-0f5c45492298?j=3DeyJ1IjoiZjh6YWkifQ.72eujHi=
+gXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM ]from Anthropic, Google=E2=80=99s Gemi=
+ni 3.0 Pro [ https://substack.com/redirect/07205261-329b-403d-b7dd-94abc979=
+90e3?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM ], =
+and OpenAI=E2=80=99s ChatGPT 5.2 Thinking [ https://substack.com/redirect/1=
+a1c59fb-6e15-4b1a-88a3-e0d8ae1f774f?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5P=
+w-3cmwzE5Ea6f_ojnL5QK7mo2IM ]. With all of the options, you get access to t=
+op-of-the-line AI models with a voice mode, the ability to see images and d=
+ocuments, the ability to execute code, good mobile apps, and the ability to=
+ create images and video (Claude lacks here, however). They all have differ=
+ent personalities and strengths and weaknesses, but for most people, just s=
+electing the one they like best will suffice. For now, the other companies =
+in this space have fallen behind, whether in models or in apps and harnesse=
+s, though some users may still have reasons for picking them.
+When you are using any AI app (more on those shortly), including phone apps=
+ or websites, the single most important thing you can do is pick the right =
+model, which the AI companies do not make easy. If you are just chatting, t=
+he default models are fine, if you want to do real work, they are not. For =
+ChatGPT, no matter whether you use the free or pay version, the default mod=
+el you are given is =E2=80=9CChatGPT 5.2=E2=80=9D. The issue is that GPT-5.=
+2 is not one model, it is many, from the very weak GPT-5.2 mini to the very=
+ good GPT-5.2 Thinking to the extremely powerful GPT-5.2 Pro. When you sele=
+ct GPT-5.2, what you are really getting is =E2=80=9Cauto=E2=80=9D mode, whe=
+re the AI decides which model to use, often a less powerful one. By paying,=
+ you get to decide which model to use, and, to further complicate things, y=
+ou can also select how hard the model =E2=80=9Cthinks=E2=80=9D about the an=
+swer. For anything complex, I always manually select GPT-5.2 Thinking Exten=
+ded (on the $20 plan) or GPT-5.2 Thinking Heavy (on more expensive plans). =
+For a really hard problem that requires a lot of thinking, you can pick GPT=
+-5.2 Pro, the strongest model, which is only available at a higher cost tie=
+r.
+For Gemini, there are three options: Gemini 3 Flash, Gemini 3 Thinking, and=
+, for some paid plans, 3 Pro. If you pay for the Ultra plan, you get access=
+ to Gemini Deep Think for very hard problems (which is in another menu enti=
+rely). Always pick Gemini 3 Pro or Thinking for any serious problem. For Cl=
+aude, you need to pick Opus 4.6 (though the new Sonnet 4.6 is also powerful=
+, it is not quite as good) and turn on the =E2=80=9Cextended thinking=E2=80=
+=9D switch.
+Again, for most people, the model differences are now small enough that the=
+ app and harness matter more than the model. Which brings us to the bigger =
+question.
+The Chatbot Interfaces
+The vast majority of people use chatbots, the main websites or mobile apps =
+of ChatGPT, Claude, and Gemini, to access their AI models. In fact, we can =
+call the chatbot the most important and widespread AI app. In the past few =
+months, these apps have become quite different from each other.
+Some of the differences are which features are bundled with AI:
+Bundled into the Gemini chatbot (and accessible with the little plus button=
+): you can access nano banana (the best current AI image creation tool), Ve=
+o 3.1 (a leading AI video creation tool), Guided Learning (when trying to s=
+tudy, this helps the AI act more like a tutor), and Deep Research
+Bundled into ChatGPT is even more of a hodgepodge of options accessible wit=
+h the plus button. You can Create Images (the image generator is almost as =
+good as nano banana, but you can=E2=80=99t access the Sora video creator th=
+rough the chatbot), Study and Learn (the equivalent to Guided Learning in G=
+emini, but there is also a separate Quizzes creator for some reason), Deep =
+Research and Shopping Research (surprisingly good and overlooked), and a se=
+t of other options that most people will not use often, so I won=E2=80=99t =
+cover here.
+Claude has only Deep Research as bundled option, but you can access a study=
+ mode by creating a Project and selecting study project.=20
+All of the AI models let you connect to data, such as letting the AI read y=
+our email and calendar, access your files, or connect to other applications=
+=2E This can make AI far more useful, b=
+ut, again, each AI tool has a differen=
+t set of connectors you can use.
+These are confusing! For most people doing real work, the most important ad=
+ditional feature is Deep Research and connecting AI to your content, but yo=
+u may want to experiment with the others. Increasingly, however, what matte=
+rs is the harness - the tools the AI has access to. And here, OpenAI and An=
+thropic have clear leads over Google. Both Claude.ai and ChatGPT have the a=
+bility to write and execute code, give you files, do extensive research, an=
+d a lot more.  Google=E2=80=99s Gemini website is much less capable (even t=
+hough its AI model is just as good),
+As you can see, asking a similar question gets working spreadsheets and Pow=
+erPoints from ChatGPT and Claude, along with clear citations I can follow u=
+p on. Gemini, however, is unable to produce either kind of document, and it=
+ does not provide citations or research. I do expect that Google will catch=
+ up here soon, however.
+One final note on Chatbots. GPT-5.2 Pro, with the harness that comes with i=
+t, is a VERY smart model. It is the model that just helped derive a novel r=
+esult in physics [ https://substack.com/redirect/569efa97-4f76-4fd9-954e-9f=
+ba58c8e982?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2=
+IM ] and it is the one I find most capable of doing complex statistical and=
+ analytical work. It is only accessible through more expensive plans. Googl=
+e Gemini 3 Deep Think also seems very capable, but suffers from the same ha=
+rness problem.
+Other apps and harnesses
+The chatbot websites are where most people interact with AI, but they are i=
+ncreasingly not where the most impressive work gets done. A growing set of =
+other apps wrap these same models in more powerful harnesses, and they matt=
+er.
+Claude Code, OpenAI Codex, and Google Antigravity are the most well-develop=
+ed of these, and they are all aimed at coders. Each of them gives an AI mod=
+el access to your codebase, a terminal, and the ability to write, run, and =
+test code on its own. You describe what you want built and the AI goes and =
+builds it, coming back when it=E2=80=99s done or stuck. If you write code f=
+or a living, these tools are changing your job. Because they have the most =
+extensive harnesses, even if you don=E2=80=99t code, they can still do a tr=
+emendous amount.
+For example, a couple years ago, I became interested in how you would make =
+an entirely paper-based LLM by providing all of the original GPT-1=E2=80=99=
+s internal weights and parameters (the code of the AI, listed as 117 millio=
+n numbers) in a set of books. In theory, with enough time, you could use th=
+ose numbers to do the math of an AI by hand. This seemed like a fun idea, b=
+ut obviously not worth doing. A week ago, I asked Claude Code to just do it=
+ for me. Over the course of an hour or so (mostly the AI working, with a co=
+uple suggestions), it made 80 beautifully laid out volumes containing all o=
+f GPT-1, along with a guide to the math. It also came up with, and executed=
+, covers for each volume that visualized the interior weights. It then put =
+together a very elegant website (including the animation below), hooked it =
+up to Stripe for payment and Lulu to print on demand, tested the whole thin=
+g, and launched it for me. I never touched or looked at any code. I had it =
+make 20 books available at cost to see what happened - and sold out the sam=
+e day. All of the volumes are still available as free PDFs on the site [ ht=
+tps://substack.com/redirect/74ec0416-2661-4b0a-88f1-ef94d8391f59?j=3DeyJ1Ij=
+oiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM ]. Now, I can have=
+ a little project idea that would have required a lot of work, and just hav=
+e it executed for me with very little effort on my part.=20
+But the coding harnesses remain risky for amateurs and, obviously, focused =
+on coding. New apps and harnesses are starting to focus on other types of k=
+nowledge work.
+Claude for Excel and Powerpoint are examples of specific harnesses inside o=
+f applications. Both of them provide very impressive extensions to these pr=
+ograms. Claude for Excel, in particular, feels like a massive change in wor=
+king with spreadsheets, with the potential for a similar impact to Claude C=
+ode for those who work with Excel for a living - you can, increasingly, tel=
+l the AI what you want to do and it acts a sort of junior analyst and does =
+the work. Because the results are in Excel, they are easy to check. Google =
+has some integration with Google Sheets (but not as deeply) and OpenAI does=
+ not really have an equivalent product.
+Claude Cowork [ https://substack.com/redirect/42b8f7df-8784-4ea6-8985-62929=
+52737a9?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM =
+] is something genuinely new, and it deserves its own category. Released by=
+ Anthropic in January, Cowork is essentially Claude Code for non-technical =
+work. It runs on your desktop and can work directly with your local files a=
+nd your browser. However, it is much more secure than Claude Code and less =
+dangerous for non-technical users (it runs in a VM with default-deny networ=
+king and hard isolation baked in, for those who care about the details) You=
+ describe an outcome (organize these expense reports, pull data from these =
+PDFs into a spreadsheet, draft a summary) and Claude makes a plan, breaks i=
+t into subtasks, and executes them on your computer while you watch (or don=
+=E2=80=99t). It was built on the same agentic architecture as Claude Code, =
+and was itself largely built by Claude Code in about two weeks. Neither Ope=
+nAI or Google have a direct equivalent, at least this week. Cowork is still=
+ a research preview, meaning it=E2=80=99s early and will eat through your u=
+sage limits fast, but it is a clear sign of where all of this is heading: A=
+I that doesn=E2=80=99t just talk to you about your work, but does your work=
+=2E
+NotebookLM [ https://substack.com/redirect/ca3e4e87-790e-45ec-aac3-1f1a6ae4=
+dd45?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM ] i=
+s Google=E2=80=99s answer to a different problem: how do you use AI to make=
+ sense of a lot of information? You can ask NotebookLM to do its own deep r=
+esearch, or else add in your own papers, YouTube videos, websites, or files=
+, and NotebookLM builds an interactive knowledge base you can query, turn i=
+nto slides, mind maps, videos and, most famously, AI-generated podcasts whe=
+re two hosts discuss your material (you can even interrupt the hosts to ask=
+ questions). If you are a student, a researcher, or anyone who regularly ne=
+eds to make sense of a pile of documents, NotebookLM is a very useful tool.=
+=2E
+And then there is OpenClaw, which I want to mention even though it doesn=E2=
+=80=99t fit neatly into any of these categories and which you almost defini=
+tely shouldn=E2=80=99t use. OpenClaw is an open-source AI agent that went v=
+iral in late January. It runs locally on your computer, connects to whateve=
+r AI model you want, and you talk to it like you were chatting with a perso=
+n using standard chats like WhatsApp or iMessage. It can browse the web, ma=
+nage your files, send emails, and run commands. It is sort of a 24/7 person=
+al assistant that lives on your machine. It is also a serious security risk=
+: you are giving an AI broad access to your computer and your accounts, and=
+ no one knows exactly what dangers you are exposing yourself to. But it doe=
+s serve as a sign of where things are going.
+What to do now
+I know this is a lot. Let me simplify.
+If you are just getting started, pick one of the three systems (ChatGPT, Cl=
+aude, or Gemini), pay the $20, and select the advanced model. The advice fr=
+om my book still holds: invite AI to everything you do. Start using it for =
+real work. Upload a document you=E2=80=99re actually working on. Give the A=
+I a very complex task in the form of an RFP or SOP. [ https://substack.com/=
+redirect/554b12cf-e239-4beb-8f9b-2dafbc226734?j=3DeyJ1IjoiZjh6YWkifQ.72eujH=
+igXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM ] Have a back-and-forth conversation =
+and push it. This alone will teach you more than any guide.
+If you are already comfortable with chatbots, try the specific apps. Notebo=
+okLM is free and easy to use, which makes it a good starting place. If you =
+want to go deeper, Anthropic offers the most powerful package in Claude Cod=
+e, Claude Cowork (both accessible through Claude Desktop) as well as the sp=
+ecialized PowerPoint and Excel Plugins. Give them a try. Again, not as a de=
+mo, but with something you actually need done. Watch what it does. Steer it=
+ when it goes wrong. You aren=E2=80=99t prompting, you are (as I wrote in m=
+y last piece) managing.
+The shift from chatbot to agent is the most important change in how people =
+use AI since ChatGPT launched. It is still early, and these tools are still=
+ hard to figure out and will still do baffling things. But an AI that does =
+things is fundamentally more useful than an AI that says things, and learni=
+ng to use it that way is worth your time.
+
+Unsubscribe https://substack.com/redirect/2/eyJlIjoiaHR0cHM6Ly93d3cub25ldXN=
+lZnVsdGhpbmcub3JnL2FjdGlvbi9kaXNhYmxlX2VtYWlsP3Rva2VuPWV5SjFjMlZ5WDJsa0lqb3=
+lOVFl4TXpJeU5pd2ljRzl6ZEY5cFpDSTZNVGc0TVRBd09ETXpMQ0pwWVhRaU9qRTNOekV6Tnpre=
+E5UUXNJbVY0Y0NJNk1UZ3dNamt4TlRFMU5Dd2lhWE56SWpvaWNIVmlMVEV4T0RBMk5EUWlMQ0p6=
+ZFdJaU9pSmthWE5oWW14bFgyVnRZV2xzSW4wLlJSZTU4NWVqQTJwMG5oZVBUM25uWmRzVFZFVjZ=
+lUHVuTUs1RnJMbkE0Nm8iLCJwIjoxODgxMDA4MzMsInMiOjExODA2NDQsImYiOnRydWUsInUiOj=
+I1NjEzMjI2LCJpYXQiOjE3NzEzNzkxNTQsImV4cCI6MjA4Njk1NTE1NCwiaXNzIjoicHViLTAiL=
+CJzdWIiOiJsaW5rLXJlZGlyZWN0In0.Aj_MzY100y-eVoOdZ3T8IBNjnlU-oghaeTdgIt2I73M?
+--590486959885784771fdf7df9fcd18015c6b194f67c00b9d7bc80e33ff77
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+<html style=3D"scrollbar-width: thin;scrollbar-color: rgb(219,219,219)rgb(2=
+55,255,255);"><head><meta charset=3D"utf-8"><title>A Guide to Which AI to U=
+se in the Agentic Era</title><style>
+@media (max-width: 1024px) {
+  .typography .pullquote-align-left,
+  .typography.editor .pullquote-align-left,
+  .typography .pullquote-align-right,
+  .typography.editor .pullquote-align-right,
+  .typography .pullquote-align-wide,
+  .typography.editor .pullquote-align-wide,
+  .typography .pullquote-align-center,
+  .typography.editor .pullquote-align-center {
+    float: none;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+@media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+  .typography .markup table.image-wrapper img,
+  .typography.editor .markup table.image-wrapper img,
+  .typography .markup table.kindle-wrapper img,
+  .typography.editor .markup table.kindle-wrapper img {
+    max-width: 550px;
+  }
+}
+@media (min-width: 1024px) {
+  .typography:not(:has(#toc)) .captioned-image-container figure:has(> a.ima=
+ge2-offset-left),
+  .typography.editor:not(:has(#toc)) .captioned-image-container figure:has(=
+> a.image2-offset-left) {
+    margin-left: var(--image-offset-margin);
+  }
+  .typography:not(:has(#toc)) .captioned-image-container figure:has(> a.ima=
+ge2-offset-right),
+  .typography.editor:not(:has(#toc)) .captioned-image-container figure:has(=
+> a.image2-offset-right) {
+    margin-right: var(--image-offset-margin);
+  }
+}
+@media (min-width: 1300px) {
+  .typography .captioned-image-container figure:has(> a.image2-offset-left)=
+,
+  .typography.editor .captioned-image-container figure:has(> a.image2-offse=
+t-left) {
+    margin-left: var(--image-offset-margin);
+  }
+  .typography .captioned-image-container figure:has(> a.image2-offset-right=
+),
+  .typography.editor .captioned-image-container figure:has(> a.image2-offse=
+t-right) {
+    margin-right: var(--image-offset-margin);
+  }
+}
+@media (max-width: 1024px) {
+  .typography,
+  .typography.editor {
+    /* Disable offset on mobile/tablet */
+  }
+  .typography .captioned-image-container figure:has(> a.image2-align-left),
+  .typography.editor .captioned-image-container figure:has(> a.image2-align=
+-left),
+  .typography .captioned-image-container figure:has(> a.image2-align-right)=
+,
+  .typography.editor .captioned-image-container figure:has(> a.image2-align=
+-right) {
+    float: none;
+    margin: 1em auto;
+    max-width: 100%;
+    width: auto;
+    padding: 0;
+  }
+  .typography .captioned-image-container figure:has(> a.image2-align-left.t=
+hefp),
+  .typography.editor .captioned-image-container figure:has(> a.image2-align=
+-left.thefp),
+  .typography .captioned-image-container figure:has(> a.image2-align-right.=
+thefp),
+  .typography.editor .captioned-image-container figure:has(> a.image2-align=
+-right.thefp) {
+    margin: 1em auto;
+  }
+  .typography .captioned-image-container figure:has(> a.image2-offset-left)=
+,
+  .typography.editor .captioned-image-container figure:has(> a.image2-offse=
+t-left),
+  .typography .captioned-image-container figure:has(> a.image2-offset-right=
+),
+  .typography.editor .captioned-image-container figure:has(> a.image2-offse=
+t-right) {
+    margin: 1em auto;
+  }
+  .typography .captioned-image-container figure:has(> a.image2-align-left) =
+=2Eimage2-inset,
+  .typography.editor .captioned-image-container figure:has(> a.image2-align=
+-left) .image2-inset,
+  .typography .captioned-image-container figure:has(> a.image2-align-right)=
+ .image2-inset,
+  .typography.editor .captioned-image-container figure:has(> a.image2-align=
+-right) .image2-inset {
+    display: block;
+    justify-content: initial;
+  }
+}
+@media (max-width: 768px) {
+  .typography .markup div.sponsorship-campaign-embed,
+  .typography.editor .markup div.sponsorship-campaign-embed {
+    margin-top: 24px;
+    margin-bottom: 24px;
+  }
+  .typography .markup div.sponsorship-campaign-embed:first-child,
+  .typography.editor .markup div.sponsorship-campaign-embed:first-child {
+    margin-top: 0px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .typography .markup div.youtube-overlay,
+  .typography.editor .markup div.youtube-overlay,
+  .typography .markup div.vimeo-overlay,
+  .typography.editor .markup div.vimeo-overlay {
+    display: none !important;
+  }
+}
+@media screen and (max-width: 370px) {
+  .typography .markup div.tiktok-wrap,
+  .typography.editor .markup div.tiktok-wrap {
+    width: calc(95vw - 32px);
+    height: calc((95vw - 32px - 2px) / 0.485714);
+  }
+}
+@media screen and (max-width: 650px) {
+  .typography .markup div.embedded-publication-wrap .embedded-publication.s=
+how-subscribe,
+  .typography.editor .markup div.embedded-publication-wrap .embedded-public=
+ation.show-subscribe {
+    padding: 24px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .typography .markup div.subscription-widget-wrap .subscription-widget.sho=
+w-subscribe,
+  .typography.editor .markup div.subscription-widget-wrap .subscription-wid=
+get.show-subscribe,
+  .typography .markup div.subscription-widget-wrap-editor .subscription-wid=
+get.show-subscribe,
+  .typography.editor .markup div.subscription-widget-wrap-editor .subscript=
+ion-widget.show-subscribe,
+  .typography .markup div.captioned-button-wrap .subscription-widget.show-s=
+ubscribe,
+  .typography.editor .markup div.captioned-button-wrap .subscription-widget=
+=2Eshow-subscribe {
+    padding: 0px 24px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .typography .markup div.subscription-widget-wrap .subscription-widget.sho=
+w-subscribe .subscription-widget-subscribe .button,
+  .typography.editor .markup div.subscription-widget-wrap .subscription-wid=
+get.show-subscribe .subscription-widget-subscribe .button,
+  .typography .markup div.subscription-widget-wrap-editor .subscription-wid=
+get.show-subscribe .subscription-widget-subscribe .button,
+  .typography.editor .markup div.subscription-widget-wrap-editor .subscript=
+ion-widget.show-subscribe .subscription-widget-subscribe .button,
+  .typography .markup div.captioned-button-wrap .subscription-widget.show-s=
+ubscribe .subscription-widget-subscribe .button,
+  .typography.editor .markup div.captioned-button-wrap .subscription-widget=
+=2Eshow-subscribe .subscription-widget-subscribe .button {
+    padding: 10px 12px;
+    min-width: 110px;
+  }
+}
+@media (max-width: 650px) {
+  .typography .markup .twitter-embed,
+  .typography.editor .markup .twitter-embed,
+  .typography .markup .tweet,
+  .typography.editor .markup .tweet {
+    padding: 12px;
+  }
+}
+@media (max-width: 650px) {
+  .typography .markup .twitter-embed .tweet-text,
+  .typography.editor .markup .twitter-embed .tweet-text,
+  .typography .markup .tweet .tweet-text,
+  .typography.editor .markup .tweet .tweet-text {
+    font-size: 14px;
+    line-height: 20px;
+  }
+}
+@media (max-width: 650px) {
+  .typography .markup .twitter-embed .tweet-photos-container.two,
+  .typography.editor .markup .twitter-embed .tweet-photos-container.two,
+  .typography .markup .tweet .tweet-photos-container.two,
+  .typography.editor .markup .tweet .tweet-photos-container.two,
+  .typography .markup .twitter-embed .tweet-photos-container.three,
+  .typography.editor .markup .twitter-embed .tweet-photos-container.three,
+  .typography .markup .tweet .tweet-photos-container.three,
+  .typography.editor .markup .tweet .tweet-photos-container.three,
+  .typography .markup .twitter-embed .tweet-photos-container.four,
+  .typography.editor .markup .twitter-embed .tweet-photos-container.four,
+  .typography .markup .tweet .tweet-photos-container.four,
+  .typography.editor .markup .tweet .tweet-photos-container.four {
+    height: 200px;
+  }
+}
+@media (max-width: 650px) {
+  .typography .markup .twitter-embed a.expanded-link .expanded-link-img,
+  .typography.editor .markup .twitter-embed a.expanded-link .expanded-link-=
+img,
+  .typography .markup .tweet a.expanded-link .expanded-link-img,
+  .typography.editor .markup .tweet a.expanded-link .expanded-link-img {
+    max-height: 180px;
+  }
+}
+@media (max-width: 650px) {
+  .typography .markup .twitter-embed a.expanded-link .expanded-link-descrip=
+tion,
+  .typography.editor .markup .twitter-embed a.expanded-link .expanded-link-=
+description,
+  .typography .markup .tweet a.expanded-link .expanded-link-description,
+  .typography.editor .markup .tweet a.expanded-link .expanded-link-descript=
+ion {
+    display: none;
+  }
+}
+@media screen and (max-width: 650px) {
+  .typography .markup .apple-podcast-container,
+  .typography.editor .markup .apple-podcast-container {
+    width: unset;
+  }
+}
+@media (max-width: 420px) {
+  .typography .markup .install-substack-app-embed img.install-substack-app-=
+embed-img,
+  .typography.editor .markup .install-substack-app-embed img.install-substa=
+ck-app-embed-img {
+    margin: 0 auto 16px auto;
+  }
+}
+@media (max-width: 420px) {
+  .typography .markup .install-substack-app-embed .install-substack-app-emb=
+ed-text,
+  .typography.editor .markup .install-substack-app-embed .install-substack-=
+app-embed-text {
+    margin: 0 0 12px 0;
+    max-width: 100%;
+    width: auto;
+    text-align: center;
+  }
+}
+@media (max-width: 420px) {
+  .typography .markup .install-substack-app-embed .install-substack-app-emb=
+ed-link,
+  .typography.editor .markup .install-substack-app-embed .install-substack-=
+app-embed-link {
+    display: flex;
+    justify-content: center;
+  }
+}
+@media screen and (min-width: 481px) {
+  .share-button-container {
+    height: 38px;
+  }
+}
+@media screen and (min-width: 481px) {
+  .share-button-container a.comment {
+    height: 38px;
+    line-height: 38px;
+    padding-right: 10px;
+  }
+}
+@media screen and (max-width: 480px) {
+  .share-button-container .separator {
+    display: block;
+    margin: 0;
+    height: 8px;
+    border-left: none;
+  }
+}
+@media screen and (max-width: 480px) {
+  .share-button-container a.share.first img {
+    padding-left: 0;
+  }
+}
+@media screen and (min-width: 481px) {
+  .share-button-container a.mobile {
+    display: none !important;
+  }
+}
+@media screen and (min-width: 541px) {
+  .settings-add-pub-modal-wrapper .container .add-recommending-pub-modal-co=
+ntainer {
+    padding: 36px;
+    height: 680px;
+  }
+}
+@media screen and (min-width: 541px) {
+  .settings-add-pub-modal-wrapper .container .add-recommending-pub-modal-co=
+ntainer .footer {
+    position: absolute;
+    bottom: 36px;
+    margin: 0px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .header-anchor-parent {
+    display: none;
+  }
+}
+@media screen and (max-width: 768px) {
+  .post {
+    padding: 16px 0 0 0;
+  }
+}
+@media screen and (max-width: 650px) {
+  .post .post-header .post-label {
+    margin-top: 8px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .post .post-header .meta-author-wrap.alternative-meta .meta-right-column =
+=2Epost-meta {
+    margin-top: 6px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .post .footer-facepile-container {
+    height: 64px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+@media screen and (max-width: 650px) {
+  .post .post-footer.use-separators {
+    justify-content: center;
+  }
+}
+@media screen and (max-width: 650px) {
+  .post .post-footer.next-prev {
+    height: 64px;
+    justify-content: space-between;
+    box-sizing: border-box;
+  }
+}
+@media screen and (max-width: 650px) {
+  .post-contributor-footer .post-contributor-bio-table {
+    display: block;
+  }
+  .post-contributor-footer .post-contributor-bio-table-row {
+    display: flex;
+    flex-direction: row;
+  }
+  .post-contributor-footer .post-contributor-bio-userhead-cell,
+  .post-contributor-footer .post-contributor-bio-body-cell {
+    display: block;
+  }
+  .post-contributor-footer .post-contributor-bio-body-cell {
+    flex-grow: 1;
+  }
+  .post-contributor-footer .post-contributor-bio-body-table {
+    display: block;
+  }
+  .post-contributor-footer .post-contributor-bio-body-table-row {
+    display: block;
+  }
+  .post-contributor-footer .post-contributor-bio-copy-cell,
+  .post-contributor-footer .post-contributor-bio-controls-cell {
+    display: block;
+  }
+  .post-contributor-footer .post-contributor-bio-copy-cell {
+    margin: 0 0 16px 0;
+  }
+  .post-contributor-footer .post-contributor-bio-controls-cell {
+    width: auto;
+  }
+  .post-contributor-footer .post-contributor-bio-controls {
+    margin: auto;
+  }
+  .post-contributor-footer .post-contributor-bio-controls .button.primary {
+    width: 100%;
+  }
+  .post-contributor-footer .post-contributor-bio-text {
+    font-size: 14px;
+  }
+}
+@media screen and (min-width: 768px) {
+  .post-silhouette {
+    padding: 32px 0;
+  }
+}
+@media screen and (max-width: 650px) {
+  .post-silhouette .post-silhouette-title {
+    margin-top: 10.44225025px;
+    height: 120px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .post-silhouette .post-silhouette-meta {
+    width: 75%;
+  }
+}
+@media screen and (max-width: 650px) {
+  .post-silhouette .post-silhouette-meta.with-byline-image {
+    margin: 20px 0;
+  }
+}
+@media screen and (max-width: 650px) {
+  .use-theme-bg .post-meta.alternative-meta .post-meta-item,
+  .post-meta.alternative-meta .post-meta-item {
+    padding-right: 16px;
+  }
+}
+@media screen and (max-width: 370px) {
+  .use-theme-bg .post-meta.alternative-meta .post-meta-item,
+  .post-meta.alternative-meta .post-meta-item {
+    font-size: 14px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .use-theme-bg .post-meta.alternative-meta .post-meta-item.guest-author-pu=
+blication,
+  .post-meta.alternative-meta .post-meta-item.guest-author-publication {
+    display: none;
+  }
+}
+@media screen and (max-width: 370px) {
+  .post-meta .post-meta-item .post-meta-button {
+    height: 36px !important;
+    /* important to override in-line height style on emails */
+  }
+  .post-meta .post-meta-item .post-meta-button .meta-button-label {
+    display: none;
+  }
+  .post-meta .post-meta-item .post-meta-button > svg {
+    margin-right: 0;
+  }
+}
+@media screen and (max-width: 370px) {
+  .post-meta .post-meta-item {
+    font-size: 12px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .post .floating-subscribe-button {
+    bottom: 20px;
+    right: 20px;
+  }
+}
+@media (max-width: 1024px) {
+  body .pullquote-align-left,
+  body .pullquote-align-right,
+  body .pullquote-align-wide,
+  body .pullquote-align-center {
+    float: none;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+@media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+  body .markup table.image-wrapper img,
+  body .markup table.kindle-wrapper img {
+    max-width: 550px;
+  }
+}
+@media (min-width: 1024px) {
+  body:not(:has(#toc)) .captioned-image-container figure:has(> a.image2-off=
+set-left) {
+    margin-left: var(--image-offset-margin);
+  }
+  body:not(:has(#toc)) .captioned-image-container figure:has(> a.image2-off=
+set-right) {
+    margin-right: var(--image-offset-margin);
+  }
+}
+@media (min-width: 1300px) {
+  body .captioned-image-container figure:has(> a.image2-offset-left) {
+    margin-left: var(--image-offset-margin);
+  }
+  body .captioned-image-container figure:has(> a.image2-offset-right) {
+    margin-right: var(--image-offset-margin);
+  }
+}
+@media (max-width: 1024px) {
+  body {
+    /* Disable offset on mobile/tablet */
+  }
+  body .captioned-image-container figure:has(> a.image2-align-left),
+  body .captioned-image-container figure:has(> a.image2-align-right) {
+    float: none;
+    margin: 1em auto;
+    max-width: 100%;
+    width: auto;
+    padding: 0;
+  }
+  body .captioned-image-container figure:has(> a.image2-align-left.thefp),
+  body .captioned-image-container figure:has(> a.image2-align-right.thefp) =
+{
+    margin: 1em auto;
+  }
+  body .captioned-image-container figure:has(> a.image2-offset-left),
+  body .captioned-image-container figure:has(> a.image2-offset-right) {
+    margin: 1em auto;
+  }
+  body .captioned-image-container figure:has(> a.image2-align-left) .image2=
+-inset,
+  body .captioned-image-container figure:has(> a.image2-align-right) .image=
+2-inset {
+    display: block;
+    justify-content: initial;
+  }
+}
+@media (max-width: 768px) {
+  body .markup div.sponsorship-campaign-embed {
+    margin-top: 24px;
+    margin-bottom: 24px;
+  }
+  body .markup div.sponsorship-campaign-embed:first-child {
+    margin-top: 0px;
+  }
+}
+@media screen and (max-width: 650px) {
+  body .markup div.youtube-overlay,
+  body .markup div.vimeo-overlay {
+    display: none !important;
+  }
+}
+@media screen and (max-width: 370px) {
+  body .markup div.tiktok-wrap {
+    width: calc(95vw - 32px);
+    height: calc((95vw - 32px - 2px) / 0.485714);
+  }
+}
+@media screen and (max-width: 650px) {
+  body .markup div.embedded-publication-wrap .embedded-publication.show-sub=
+scribe {
+    padding: 24px;
+  }
+}
+@media screen and (max-width: 650px) {
+  body .markup div.subscription-widget-wrap .subscription-widget.show-subsc=
+ribe,
+  body .markup div.subscription-widget-wrap-editor .subscription-widget.sho=
+w-subscribe,
+  body .markup div.captioned-button-wrap .subscription-widget.show-subscrib=
+e {
+    padding: 0px 24px;
+  }
+}
+@media screen and (max-width: 650px) {
+  body .markup div.subscription-widget-wrap .subscription-widget.show-subsc=
+ribe .subscription-widget-subscribe .button,
+  body .markup div.subscription-widget-wrap-editor .subscription-widget.sho=
+w-subscribe .subscription-widget-subscribe .button,
+  body .markup div.captioned-button-wrap .subscription-widget.show-subscrib=
+e .subscription-widget-subscribe .button {
+    padding: 10px 12px;
+    min-width: 110px;
+  }
+}
+@media (max-width: 650px) {
+  body .markup .twitter-embed,
+  body .markup .tweet {
+    padding: 12px;
+  }
+}
+@media (max-width: 650px) {
+  body .markup .twitter-embed .tweet-text,
+  body .markup .tweet .tweet-text {
+    font-size: 14px;
+    line-height: 20px;
+  }
+}
+@media (max-width: 650px) {
+  body .markup .twitter-embed .tweet-photos-container.two,
+  body .markup .tweet .tweet-photos-container.two,
+  body .markup .twitter-embed .tweet-photos-container.three,
+  body .markup .tweet .tweet-photos-container.three,
+  body .markup .twitter-embed .tweet-photos-container.four,
+  body .markup .tweet .tweet-photos-container.four {
+    height: 200px;
+  }
+}
+@media (max-width: 650px) {
+  body .markup .twitter-embed a.expanded-link .expanded-link-img,
+  body .markup .tweet a.expanded-link .expanded-link-img {
+    max-height: 180px;
+  }
+}
+@media (max-width: 650px) {
+  body .markup .twitter-embed a.expanded-link .expanded-link-description,
+  body .markup .tweet a.expanded-link .expanded-link-description {
+    display: none;
+  }
+}
+@media screen and (max-width: 650px) {
+  body .markup .apple-podcast-container {
+    width: unset;
+  }
+}
+@media (max-width: 420px) {
+  body .markup .install-substack-app-embed img.install-substack-app-embed-i=
+mg {
+    margin: 0 auto 16px auto;
+  }
+}
+@media (max-width: 420px) {
+  body .markup .install-substack-app-embed .install-substack-app-embed-text=
+ {
+    margin: 0 0 12px 0;
+    max-width: 100%;
+    width: auto;
+    text-align: center;
+  }
+}
+@media (max-width: 420px) {
+  body .markup .install-substack-app-embed .install-substack-app-embed-link=
+ {
+    display: flex;
+    justify-content: center;
+  }
+}
+@media screen and (min-width: 500px) {
+  body .header a.logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+}
+@media screen and (max-width: 420px) {
+  body .subscription-receipt table:first-of-type .subscription-amount .subs=
+cription-discount {
+    width: 72px !important;
+  }
+}
+@media screen and (min-width: 481px) {
+  body .share-button-container {
+    height: auto;
+  }
+}
+@media screen and (max-width: 480px) {
+  body .share-button-container .separator {
+    display: block !important;
+    margin: 0 !important;
+    height: 8px !important;
+    border-left: none !important;
+  }
+}
+@media screen and (max-width: 650px) {
+  .digest .item .post-meta-item.audience {
+    display: none;
+  }
+}
+@media screen and (min-width: 500px) {
+  .digest-publication .logo img {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .comments-page .container .comment-list .collapsed-reply {
+    margin-left: calc(10 + 32px - 24px);
+  }
+}
+@media screen and (max-width: 650px) {
+  .comment > .comment-list {
+    padding-left: 24px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .finish-magic-login-modal .modal-content .container {
+    padding: 24px 0;
+  }
+}
+@media (max-width: 650px) {
+  .reader2-text-b3 {
+    line-height: 24px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .reader2-text-h4 {
+    line-height: 24px;
+  }
+}
+@media screen and (min-width: 541px) {
+  .user-profile-modal {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .subscribe-widget form.form .sideBySideWrap button.rightButton {
+    padding: 10px 12px;
+  }
+}
+@media screen and (min-width: 541px) {
+  .pub-icon:hover .logo-hover,
+  .feed-item-icon:hover .logo-hover {
+    display: block;
+  }
+}
+@media screen and (max-width: 650px) {
+  .post-ufi.single-full-width-button .post-ufi-button-wrapper {
+    width: 100%;
+    padding: 16px;
+  }
+  .post-ufi.single-full-width-button .post-ufi-button-wrapper:empty {
+    display: none;
+  }
+  .post-ufi.single-full-width-button .post-ufi-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+@media screen and (max-width: 768px) {
+  .file-embed-wrapper {
+    padding: 0;
+  }
+}
+@media screen and (max-width: 768px) {
+  .file-embed-wrapper-editor {
+    padding: 0;
+  }
+}
+@media screen and (max-width: 768px) {
+  .file-embed-wrapper-editor:active {
+    padding: 0;
+  }
+}
+@media only screen and (max-width: 650px) {
+  .file-embed-button.wide,
+  .file-embed-error-button.wide {
+    display: none;
+  }
+}
+@media only screen and (min-width: 630px) {
+  .file-embed-button.narrow,
+  .file-embed-error-button.narrow {
+    display: none;
+  }
+}
+@media screen and (min-width: 541px) {
+  .audio-player-wrapper .audio-player {
+    min-width: 500px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .audio-player-wrapper .audio-player .audio-player-progress {
+    border-left-width: 16px;
+    border-right-width: 16px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .audio-player-wrapper .audio-player .audio-player-progress .audio-player-=
+progress-bar .audio-player-progress-bar-popup {
+    top: -54px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .audio-player-wrapper-fancy .audio-player .audio-player-progress {
+    border-left-width: 16px;
+    border-right-width: 16px;
+  }
+}
+@media screen and (max-width: 650px) {
+  .audio-player-wrapper-fancy .audio-player .audio-player-progress .audio-p=
+layer-progress-bar .audio-player-progress-bar-popup {
+    top: -54px;
+  }
+}
+@media (min-width: 250px) {
+  .audio-player-wrapper-fancy .audio-player {
+    padding: 32px;
+  }
+  .audio-player-wrapper-fancy .audio-player .btn-group {
+    display: flex;
+  }
+  .audio-player-wrapper-fancy .audio-player .btn-group .button:last-of-type=
+ {
+    display: block;
+  }
+}
+@media (min-width: 300px) {
+  .audio-player-wrapper-fancy .audio-player .btn-group {
+    display: block;
+  }
+  .audio-player-wrapper-fancy .audio-player .btn-group .button:first-of-typ=
+e {
+    display: block;
+  }
+}
+@media (min-width: 350px) {
+  .audio-player-wrapper-fancy .audio-player .audio-player-substack-logo {
+    display: block;
+  }
+  .audio-player-wrapper-fancy .audio-player .audio-player-title {
+    margin-top: 16px;
+  }
+  .audio-player-wrapper-fancy .audio-player .audio-player-hero-image-contai=
+ner {
+    padding-top: 15%;
+    width: 15%;
+    display: block;
+  }
+  .audio-player-wrapper-fancy .audio-player .btn-group .button:first-of-typ=
+e {
+    display: block;
+  }
+  .audio-player-wrapper-fancy .audio-player .audio-player-substack-logo {
+    display: block;
+  }
+}
+@media (min-width: 350px) {
+  .audio-player-wrapper-fancy .audio-player .audio-player-hero-image-contai=
+ner {
+    padding-top: 25%;
+    width: 25%;
+    display: block;
+  }
+  .audio-player-wrapper-fancy .audio-player .btn-group {
+    display: flex;
+  }
+  .audio-player-wrapper-fancy .audio-player .btn-group .button:first-of-typ=
+e {
+    display: block;
+  }
+}
+@media (min-width: 400px) {
+  .audio-player-wrapper-fancy .audio-player .audio-player-hero-image-contai=
+ner {
+    padding-top: 40%;
+    width: 40%;
+  }
+}
+@media (max-width: 400px) {
+  .audio-player-wrapper-fancy .audio-player .btn-group {
+    margin-top: 12px;
+  }
+  .audio-player-wrapper-fancy .audio-player .btn-group .button {
+    font-size: 13px;
+    padding: 6px 12px;
+    height: auto;
+    margin-top: 10px;
+  }
+}
+@media (min-width: 600px) {
+  .audio-player-wrapper-fancy .audio-player .audio-player-hero-image-contai=
+ner {
+    padding-top: 55%;
+    width: 55%;
+  }
+}
+@media (max-width: 650px) {
+  .poll-editor-modal {
+    min-width: calc(100% - 20px);
+  }
+}
+@media (max-width: 750px) {
+  .poll-embed .poll-anchor-target .poll-anchor-copy-button {
+    left: 8px;
+    top: 45px;
+  }
+}</style></head><body class=3D"email-body" style=3D"font-kerning: auto;--im=
+age-offset-margin: -120px;"><img src=3D"https://eotrx.substackcdn.com/open?=
+token=REDACTED" alt=3D"" width=3D"1"=
+ height=3D"1" border=3D"0" style=3D"height:1px !important;width:1px !import=
+ant;border-width:0 !important;margin-top:0 !important;margin-bottom:0 !impo=
+rtant;margin-right:0 !important;margin-left:0 !important;padding-top:0 !imp=
+ortant;padding-bottom:0 !important;padding-right:0 !important;padding-left:=
+0 !important;"/><div class=3D"preview" style=3D"display:none;font-size:1px;=
+color:#333333;line-height:1px;max-height:0px;max-width:0px;opacity:0;overfl=
+ow:hidden;">It's not just chatbots anymore</div><div class=3D"preview" styl=
+e=3D"display:none;font-size:1px;color:#333333;line-height:1px;max-height:0p=
+x;max-width:0px;opacity:0;overflow:hidden;">&#847; &nbsp; &#8199; &#173;&#8=
+47; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; =
+&#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp;=
+ &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#84=
+7; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &=
+#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; =
+&#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847=
+; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#=
+173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &=
+#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847;=
+ &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#1=
+73;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#=
+8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; =
+&nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#17=
+3;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8=
+199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &=
+nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173=
+;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#81=
+99; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &n=
+bsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;=
+&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#819=
+9; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nb=
+sp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&=
+#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199=
+; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbs=
+p; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#=
+847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199;=
+ &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp=
+; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#8=
+47; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; =
+&#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp;=
+ &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#84=
+7; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &=
+#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; =
+&#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847=
+; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#=
+173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &=
+#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847;=
+ &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#1=
+73;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#=
+8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; =
+&nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#17=
+3;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8=
+199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &=
+nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173=
+;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#81=
+99; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &n=
+bsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;=
+&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#819=
+9; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nb=
+sp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&=
+#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199=
+; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbs=
+p; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#=
+847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199;=
+ &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp=
+; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#8=
+47; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; =
+&#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp;=
+ &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#84=
+7; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &=
+#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; =
+&#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847=
+; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#=
+173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &=
+#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847;=
+ &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#1=
+73;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#=
+8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; =
+&nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#17=
+3;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8=
+199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &=
+nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173=
+;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#81=
+99; &#173;&#847; &nbsp; &#8199; &#173;&#847; &nbsp; &#8199; &#173;&#847; &n=
+bsp; &#8199; &#173;</div><table class=3D"email-body-container" role=3D"pres=
+entation" width=3D"100%" border=3D"0" cellspacing=3D"0" cellpadding=3D"0"><=
+tbody><tr><td></td><td class=3D"content" width=3D"550"></td><td></td></tr><=
+tr><td></td><td class=3D"content" width=3D"550" align=3D"left"><div style=
+=3D"font-size: 16px;line-height: 26px;max-width: 550px;width: 100%;margin: =
+0 auto;overflow-wrap: break-word;"><table role=3D"presentation" width=3D"10=
+0%" border=3D"0" cellspacing=3D"0" cellpadding=3D"0"><tbody><tr><td align=
+=3D"right" style=3D"height:20px;"><table role=3D"presentation" width=3D"aut=
+o" border=3D"0" cellspacing=3D"0" cellpadding=3D"0"><tbody><tr><td style=3D=
+"vertical-align:middle;"><span class=3D"pencraft pc-reset reset-IxiVJZ tw-f=
+ont-body tw-text-ssm tw-text-substack-secondary" style=3D"font-family: SF P=
+ro Text, -apple-system, system-ui, BlinkMacSystemFont, Inter, Segoe UI, Rob=
+oto, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe=
+ UI Symbol;font-size: 13px;color: unset;list-style: none;text-decoration: u=
+nset;margin: 0;"><div class=3D"pencraft pc-reset align-right-VJbKw5 size-12=
+-mmZ61m reset-IxiVJZ" style=3D"list-style: none;color: unset;text-align: ri=
+ght;font-size: 12px;line-height: 16px;text-decoration: unset;margin: 0;"><s=
+pan class=3D"pencraft pc-reset reset-IxiVJZ" translated=3D"" style=3D"list-=
+style: none;color: unset;text-decoration: unset;margin: 0;">Forwarded this =
+email? <a class=3D"pencraft pc-reset decoration-underline-ClTkYc reset-IxiV=
+JZ" href=3D"https://substack.com/redirect/2/eyJlIjoiaHR0cHM6Ly93d3cub25ldXN=
+lZnVsdGhpbmcub3JnL3N1YnNjcmliZT91dG1fc291cmNlPWVtYWlsJnV0bV9jYW1wYWlnbj1lbW=
+FpbC1zdWJzY3JpYmUmcj1mOHphaSZuZXh0PWh0dHBzJTNBJTJGJTJGd3d3Lm9uZXVzZWZ1bHRoa=
+W5nLm9yZyUyRnAlMkZhLWd1aWRlLXRvLXdoaWNoLWFpLXRvLXVzZS1pbi10aGUiLCJwIjoxODgx=
+MDA4MzMsInMiOjExODA2NDQsImYiOnRydWUsInUiOjI1NjEzMjI2LCJpYXQiOjE3NzEzNzkxNTQ=
+sImV4cCI6MjA4Njk1NTE1NCwiaXNzIjoicHViLTAiLCJzdWIiOiJsaW5rLXJlZGlyZWN0In0.Rp=
+V6RhQu1OcBTLaE8qJPojHra1oQeVsrbltZnF5apFk?" style=3D"list-style: none;color=
+: unset;text-decoration: unset;margin: 0;-webkit-text-decoration-line: unde=
+rline;text-decoration-line: underline;">Subscribe here</a> for more</span><=
+/div></span></td></tr></tbody></table></td></tr></tbody></table><div class=
+=3D"post typography" dir=3D"auto" style=3D"--image-offset-margin: -120px;pa=
+dding: 32px 0 0 0;font-size: 16px;line-height: 26px;"><div class=3D"post-he=
+ader" role=3D"region" aria-label=3D"Post header" style=3D"font-size: 16px;l=
+ine-height: 26px;"><h1 class=3D"post-title published title-X77sOw" dir=3D"a=
+uto" style=3D"direction: auto;text-align: start;unicode-bidi: isolate;color=
+: rgb(54,55,55);font-family: 'SF Pro Display',-apple-system-headline,system=
+-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans=
+-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';font-weight: =
+bold;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: antialias=
+ed;-webkit-appearance: optimizelegibility;-moz-appearance: optimizelegibili=
+ty;appearance: optimizelegibility;margin: 0;line-height: 36px;font-size: 32=
+px;"><a href=3D"https://substack.com/app-link/post?publication_id=3D1180644=
+&post_id=3D188100833&utm_source=3Dpost-email-title&utm_campaign=3Demail-pos=
+t-title&isFreemail=3Dtrue&r=3Df8zai&token=REDACTED" style=3D"color: rgb(54,55,55);text-decoration: none;">A=
+ Guide to Which AI to Use in the Agentic Era</a></h1><h3 class=3D"subtitle =
+subtitle-HEEcLo" dir=3D"auto" style=3D"direction: auto;text-align: start;un=
+icode-bidi: isolate;font-family: 'SF Pro Display',-apple-system-headline,sy=
+stem-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,=
+sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';font-weig=
+ht: normal;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: ant=
+ialiased;-webkit-appearance: optimizelegibility;-moz-appearance: optimizele=
+gibility;appearance: optimizelegibility;margin: 4px 0 0;color: #777777;line=
+-height: 24px;font-size: 18px;margin-top: 12px;">It's not just chatbots any=
+more</h3><table class=3D"post-meta" role=3D"presentation" width=3D"100%" bo=
+rder=3D"0" cellspacing=3D"0" cellpadding=3D"0" style=3D"margin: 1em 0;heigh=
+t: 20px;align-items: center;"><tbody><tr><td><table role=3D"presentation" w=
+idth=3D"auto" border=3D"0" cellspacing=3D"0" cellpadding=3D"0"><tbody><tr><=
+td><table role=3D"presentation" width=3D"auto" border=3D"0" cellspacing=3D"=
+0" cellpadding=3D"0"><tbody><tr><td style=3D"vertical-align:middle;"><div c=
+lass=3D"pencraft pc-reset color-primary-zABazT line-height-20-t4M0El font-m=
+eta-MWBumP size-11-NuY2Zx weight-medium-fw81nC transform-uppercase-yKDgcq r=
+eset-IxiVJZ meta-EgzBVA custom-css-email-post-author" style=3D"list-style: =
+none;font-size: 11px;line-height: 20px;text-decoration: unset;color: rgb(54=
+,55,55);margin: 0;font-family: 'SF Compact',-apple-system,system-ui,-apple-=
+system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'App=
+le Color Emoji','Segoe UI Emoji','Segoe UI Symbol';font-weight: 500;text-tr=
+ansform: uppercase;letter-spacing: .2px;"><a class=3D"pencraft pc-reset col=
+or-primary-zABazT line-height-20-t4M0El font-meta-MWBumP size-11-NuY2Zx wei=
+ght-medium-fw81nC transform-uppercase-yKDgcq reset-IxiVJZ meta-EgzBVA" styl=
+e=3D"list-style: none;color: rgb(54,55,55);margin: 0;font-size: 11px;line-h=
+eight: 20px;font-family: 'SF Compact',-apple-system,system-ui,-apple-system=
+,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Col=
+or Emoji','Segoe UI Emoji','Segoe UI Symbol';font-weight: 500;text-transfor=
+m: uppercase;letter-spacing: .2px;text-decoration: none" href=3D"https://su=
+bstack.com/@oneusefulthing">Ethan Mollick</a></div></td></tr></tbody></tabl=
+e></td></tr><tr><td><table role=3D"presentation" width=3D"auto" border=3D"0=
+" cellspacing=3D"0" cellpadding=3D"0"><tbody><tr><td style=3D"vertical-alig=
+n:middle;"><div class=3D"pencraft pc-reset color-secondary-ls1g8s line-heig=
+ht-20-t4M0El font-meta-MWBumP size-11-NuY2Zx weight-medium-fw81nC transform=
+-uppercase-yKDgcq reset-IxiVJZ meta-EgzBVA" style=3D"list-style: none;font-=
+size: 11px;line-height: 20px;text-decoration: unset;color: rgb(119,119,119)=
+;margin: 0;font-family: 'SF Compact',-apple-system,system-ui,-apple-system,=
+BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Colo=
+r Emoji','Segoe UI Emoji','Segoe UI Symbol';font-weight: 500;text-transform=
+: uppercase;letter-spacing: .2px;"><time datetime=3D"2026-02-18T01:45:41.34=
+2Z">Feb 18</time></div></td></tr></tbody></table></td></tr></tbody></table>=
+</td><td align=3D"right"><table role=3D"presentation" width=3D"auto" border=
+=3D"0" cellspacing=3D"0" cellpadding=3D"0"><tbody><tr><td style=3D"vertical=
+-align:middle;"><a href=3D"https://substack.com/@oneusefulthing"><img class=
+=3D"custom-css-email-avatar avatar-QIQ5yR" src=3D"https://substackcdn.com/i=
+mage/fetch/$s_!l3g8!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2F=
+substack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F7c05cdbc-40fd-459b=
+-915d-f8bc8ac8bf01_3509x5263.jpeg" style=3D"box-sizing: border-box;max-widt=
+h: 550px;border: none;vertical-align: middle;width: 40px;height: 40px;min-w=
+idth: 40px;min-height: 40px;object-fit: cover;margin: 0px;display: inline;b=
+order-radius: 50%" width=3D"40" height=3D"40"></a></td></tr></tbody></table=
+></td></tr></tbody></table><table class=3D"email-ufi-2-top" role=3D"present=
+ation" width=3D"100%" border=3D"0" cellspacing=3D"0" cellpadding=3D"0" styl=
+e=3D"border-top: 1px solid rgb(0,0,0,.1);border-bottom: 1px solid rgb(0,0,0=
+,.1);min-width: 100%;"><tbody><tr height=3D"16"><td height=3D"16" style=3D"=
+font-size:0px;line-height:0;">&nbsp;</td></tr><tr><td><table role=3D"presen=
+tation" width=3D"100%" border=3D"0" cellspacing=3D"0" cellpadding=3D"0"><tb=
+ody><tr><td><table role=3D"presentation" width=3D"auto" border=3D"0" cellsp=
+acing=3D"0" cellpadding=3D"0"><tbody><tr><td style=3D"vertical-align:middle=
+;"><table role=3D"presentation" width=3D"38" border=3D"0" cellspacing=3D"0"=
+ cellpadding=3D"0"><tbody><tr><td align=3D"center"><a class=3D"email-icon-b=
+utton" href=3D"https://substack.com/app-link/post?publication_id=3D1180644&=
+post_id=3D188100833&utm_source=3Dsubstack&isFreemail=3Dtrue&submitLike=3Dtr=
+ue&token=REDACTED&utm_medium=3Demail&utm_campaign=3Demail-reaction&r=3Df8zai" style=3D"font=
+-family: system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helve=
+tica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol=
+';display: inline-block;font-weight: 500;border: 1px solid rgb(0,0,0,.1);bo=
+rder-radius: 9999px;text-transform: uppercase;font-size: 12px;line-height: =
+1;padding: 9px 0;text-decoration: none;color: rgb(119,119,119);min-width: 3=
+8px;box-sizing: border-box;width: 38px"><img class=3D"icon" src=3D"https://=
+substackcdn.com/image/fetch/$s_!PeVs!,w_36,c_scale,f_png,q_auto:good,fl_pro=
+gressive:steep/https%3A%2F%2Fsubstack.com%2Ficon%2FLucideHeart%3Fv%3D4%26he=
+ight%3D36%26fill%3Dnone%26stroke%3D%2523808080%26strokeWidth%3D2" width=3D"=
+18" height=3D"18" style=3D"border: none;vertical-align: middle;max-width: 1=
+8px" alt=3D""></a></td></tr></tbody></table></td><td width=3D"8" style=3D"m=
+in-width:8px;"></td><td style=3D"vertical-align:middle;"><table role=3D"pre=
+sentation" width=3D"38" border=3D"0" cellspacing=3D"0" cellpadding=3D"0"><t=
+body><tr><td align=3D"center"><a class=3D"email-icon-button" href=3D"https:=
+//substack.com/app-link/post?publication_id=3D1180644&post_id=3D188100833&u=
+tm_source=3Dsubstack&utm_medium=3Demail&isFreemail=3Dtrue&comments=3Dtrue&t=
+oken=3DeyJ1c2VyX2lkIjoyNTYxMzIyNiwicG9zdF9pZCI6MTg4MTAwODMzLCJpYXQiOjE3NzEz=
+NzkxNTQsImV4cCI6MTc3Mzk3MTE1NCwiaXNzIjoicHViLTExODA2NDQiLCJzdWIiOiJwb3N0LXJ=
+lYWN0aW9uIn0.dlOt2VeAvzC0XmdsPcWw2ej0tuYT9fUzFgWRTC8OnS0&r=3Df8zai&utm_camp=
+aign=3Demail-half-magic-comments&action=3Dpost-comment&utm_source=3Dsubstac=
+k&utm_medium=3Demail" style=3D"font-family: system-ui,-apple-system,BlinkMa=
+cSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji=
+','Segoe UI Emoji','Segoe UI Symbol';display: inline-block;font-weight: 500=
+;border: 1px solid rgb(0,0,0,.1);border-radius: 9999px;text-transform: uppe=
+rcase;font-size: 12px;line-height: 1;padding: 9px 0;text-decoration: none;c=
+olor: rgb(119,119,119);min-width: 38px;box-sizing: border-box;width: 38px">=
+<img class=3D"icon" src=3D"https://substackcdn.com/image/fetch/$s_!x1tS!,w_=
+36,c_scale,f_png,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack.co=
+m%2Ficon%2FLucideComments%3Fv%3D4%26height%3D36%26fill%3Dnone%26stroke%3D%2=
+523808080%26strokeWidth%3D2" width=3D"18" height=3D"18" style=3D"border: no=
+ne;vertical-align: middle;max-width: 18px" alt=3D""></a></td></tr></tbody><=
+/table></td><td width=3D"8" style=3D"min-width:8px;"></td><td style=3D"vert=
+ical-align:middle;"><table role=3D"presentation" width=3D"38" border=3D"0" =
+cellspacing=3D"0" cellpadding=3D"0"><tbody><tr><td align=3D"center"><a clas=
+s=3D"email-icon-button" href=3D"https://substack.com/app-link/post?publicat=
+ion_id=3D1180644&post_id=3D188100833&utm_source=3Dsubstack&utm_medium=3Dema=
+il&utm_content=3Dshare&utm_campaign=3Demail-share&action=3Dshare&triggerSha=
+re=3Dtrue&isFreemail=3Dtrue&r=3Df8zai&token=REDACTED" style=3D"font-family: system-ui,-apple-system,BlinkMa=
+cSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji=
+','Segoe UI Emoji','Segoe UI Symbol';display: inline-block;font-weight: 500=
+;border: 1px solid rgb(0,0,0,.1);border-radius: 9999px;text-transform: uppe=
+rcase;font-size: 12px;line-height: 1;padding: 9px 0;text-decoration: none;c=
+olor: rgb(119,119,119);min-width: 38px;box-sizing: border-box;width: 38px">=
+<img class=3D"icon" src=3D"https://substackcdn.com/image/fetch/$s_!_L14!,w_=
+36,c_scale,f_png,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack.co=
+m%2Ficon%2FLucideShare2%3Fv%3D4%26height%3D36%26fill%3Dnone%26stroke%3D%252=
+3808080%26strokeWidth%3D2" width=3D"18" height=3D"18" style=3D"border: none=
+;vertical-align: middle;max-width: 18px" alt=3D""></a></td></tr></tbody></t=
+able></td><td width=3D"8" style=3D"min-width:8px;"></td><td style=3D"vertic=
+al-align:middle;"><table role=3D"presentation" width=3D"38" border=3D"0" ce=
+llspacing=3D"0" cellpadding=3D"0"><tbody><tr><td align=3D"center"><a class=
+=3D"email-icon-button" href=3D"https://substack.com/redirect/2/eyJlIjoiaHR0=
+cHM6Ly9vcGVuLnN1YnN0YWNrLmNvbS9wdWIvb25ldXNlZnVsdGhpbmcvcC9hLWd1aWRlLXRvLXd=
+oaWNoLWFpLXRvLXVzZS1pbi10aGU_dXRtX3NvdXJjZT1zdWJzdGFjayZ1dG1fbWVkaXVtPWVtYW=
+lsJnV0bV9jYW1wYWlnbj1lbWFpbC1yZXN0YWNrLWNvbW1lbnQmYWN0aW9uPXJlc3RhY2stY29tb=
+WVudCZyPWY4emFpJnRva2VuPWV5SjFjMlZ5WDJsa0lqb3lOVFl4TXpJeU5pd2ljRzl6ZEY5cFpD=
+STZNVGc0TVRBd09ETXpMQ0pwWVhRaU9qRTNOekV6TnpreE5UUXNJbVY0Y0NJNk1UYzNNemszTVR=
+FMU5Dd2lhWE56SWpvaWNIVmlMVEV4T0RBMk5EUWlMQ0p6ZFdJaU9pSndiM04wTFhKbFlXTjBhVz=
+l1SW4wLmRsT3QyVmVBdnpDMFhtZHNQY1d3MmVqMHR1WVQ5ZlV6RmdXUlRDOE9uUzAiLCJwIjoxO=
+DgxMDA4MzMsInMiOjExODA2NDQsImYiOnRydWUsInUiOjI1NjEzMjI2LCJpYXQiOjE3NzEzNzkx=
+NTQsImV4cCI6MjA4Njk1NTE1NCwiaXNzIjoicHViLTAiLCJzdWIiOiJsaW5rLXJlZGlyZWN0In0=
+=2EG-GCUJlZYw30a4R-H4c2E7hGCNB_aZnrWc2=
+Jzp2ue6Q?&utm_source=3Dsubstack&utm_med=
+ium=3Demail" style=3D"font-family: system-ui,-apple-system,BlinkMacSystemFo=
+nt,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe =
+UI Emoji','Segoe UI Symbol';display: inline-block;font-weight: 500;border: =
+1px solid rgb(0,0,0,.1);border-radius: 9999px;text-transform: uppercase;fon=
+t-size: 12px;line-height: 1;padding: 9px 0;text-decoration: none;color: rgb=
+(119,119,119);min-width: 38px;box-sizing: border-box;width: 38px"><img clas=
+s=3D"icon" src=3D"https://substackcdn.com/image/fetch/$s_!5EGt!,w_36,c_scal=
+e,f_png,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack.com%2Ficon%=
+2FNoteForwardIcon%3Fv%3D4%26height%3D36%26fill%3Dnone%26stroke%3D%252380808=
+0%26strokeWidth%3D2" width=3D"18" height=3D"18" style=3D"border: none;verti=
+cal-align: middle;max-width: 18px" alt=3D""></a></td></tr></tbody></table><=
+/td></tr></tbody></table></td><td align=3D"right"><table role=3D"presentati=
+on" width=3D"auto" border=3D"0" cellspacing=3D"0" cellpadding=3D"0"><tbody>=
+<tr><td style=3D"vertical-align:middle;"><table role=3D"presentation" width=
+=3D"auto" border=3D"0" cellspacing=3D"0" cellpadding=3D"0"><tbody><tr><td a=
+lign=3D"center"><a class=3D"email-button-outline" href=3D"https://open.subs=
+tack.com/pub/oneusefulthing/p/a-guide-to-which-ai-to-use-in-the?utm_source=
+=3Demail&redirect=3Dapp-store&utm_campaign=3Demail-read-in-app" style=3D"fo=
+nt-family: system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Hel=
+vetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symb=
+ol';display: inline-block;font-weight: 500;border: 1px solid rgb(0,0,0,.1);=
+border-radius: 9999px;text-transform: uppercase;font-size: 12px;line-height=
+: 12px;padding: 9px 14px;text-decoration: none;color: rgb(119,119,119);"><d=
+iv class=3D"email-button-spacer" style=3D"font-size: 16px;line-height: 26px=
+;display: inline-block;vertical-align: middle;max-width: 0;min-height: 18px=
+;"></div><span class=3D"email-button-text" style=3D"vertical-align: middle;=
+margin-right: 4px">READ IN APP</span><img class=3D"icon text-icon" src=3D"h=
+ttps://substackcdn.com/image/fetch/$s_!ET-_!,w_36,c_scale,f_png,q_auto:good=
+,fl_progressive:steep/https%3A%2F%2Fsubstack.com%2Ficon%2FLucideArrowUpRigh=
+t%3Fv%3D4%26height%3D36%26fill%3Dnone%26stroke%3D%2523808080%26strokeWidth%=
+3D2" width=3D"18" height=3D"18" style=3D"min-width: 18px;min-height: 18px;b=
+order: none;vertical-align: middle;margin-right: 0;margin-left: 0;max-width=
+: 18px" alt=3D""></a></td></tr></tbody></table></td></tr></tbody></table></=
+td></tr></tbody></table></td></tr><tr height=3D"16"><td height=3D"16" style=
+=3D"font-size:0px;line-height:0;">&nbsp;</td></tr></tbody></table></div></d=
+iv><div class=3D"post typography" dir=3D"auto" style=3D"--image-offset-marg=
+in: -120px;padding: 32px 0 0 0;font-size: 16px;line-height: 26px;"><div cla=
+ss=3D"body markup" dir=3D"auto" style=3D"text-align: initial;font-size: 16p=
+x;line-height: 26px;width: 100%;word-break: break-word;margin-bottom: 16px;=
+"><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px;fon=
+t-size: 16px;margin-top: 0;">I have written eight of these guides since Cha=
+tGPT came out, but this version represents a very large break with the past=
+, because what it means to &#8220;use AI&#8221; has changed dramatically. U=
+ntil a few months ago, for the vast majority of people, &#8220;using AI&#82=
+21; meant talking to a chatbot in a back-and-forth conversation. But over t=
+he past few months, it has become practical to use AI as an agent: you can =
+assign them to a task and they do them, using tools as appropriate. Because=
+ of this change, you have to consider three things when deciding what AI to=
+ use: Models, Apps, and Harnesses.</p><div class=3D"captioned-image-contain=
+er-static" style=3D"font-size: 16px;line-height: 26px;margin: 32px auto;"><=
+figure style=3D"width: 100%;margin: 0 auto;"><table class=3D"image-wrapper"=
+ width=3D"100%" border=3D"0" cellspacing=3D"0" cellpadding=3D"0" data-compo=
+nent-name=3D"Image2ToDOMStatic" style=3D"mso-padding-alt: 1em 0 1.6em;"><tb=
+ody><tr><td style=3D"text-align: center;"></td><td class=3D"content" align=
+=3D"left" width=3D"1456" style=3D"text-align: center;"><a class=3D"image-li=
+nk" target=3D"_blank" href=3D"https://substack.com/redirect/1f93fc2c-7d81-4=
+e45-9328-6718e909b331?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_=
+ojnL5QK7mo2IM" rel=3D"" style=3D"position: relative;flex-direction: column;=
+align-items: center;padding: 0;width: auto;height: auto;border: none;text-d=
+ecoration: none;display: block;margin: 0;"><img class=3D"wide-image" data-a=
+ttrs=3D"{&quot;src&quot;:&quot;https://substack-post-media.s3.amazonaws.com=
+/public/images/59cd7383-bdba-4322-8714-006f0157e0e1_4582x1337.png&quot;,&qu=
+ot;srcNoWatermark&quot;:null,&quot;fullscreen&quot;:null,&quot;imageSize&qu=
+ot;:null,&quot;height&quot;:425,&quot;width&quot;:1456,&quot;resizeWidth&qu=
+ot;:null,&quot;bytes&quot;:1660337,&quot;alt&quot;:null,&quot;title&quot;:n=
+ull,&quot;type&quot;:&quot;image/png&quot;,&quot;href&quot;:null,&quot;belo=
+wTheFold&quot;:false,&quot;topImage&quot;:true,&quot;internalRedirect&quot;=
+:&quot;https://www.oneusefulthing.org/i/188100833?img=3Dhttps%3A%2F%2Fsubst=
+ack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F59cd7383-bdba-4322-8714=
+-006f0157e0e1_4582x1337.png&quot;,&quot;isProcessing&quot;:false,&quot;alig=
+n&quot;:null,&quot;offset&quot;:false}" alt=3D"" width=3D"550" height=3D"16=
+0.54258241758242" src=3D"https://substackcdn.com/image/fetch/$s_!0VjC!,w_11=
+00,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-p=
+ost-media.s3.amazonaws.com%2Fpublic%2Fimages%2F59cd7383-bdba-4322-8714-006f=
+0157e0e1_4582x1337.png" style=3D"border: none !important;vertical-align: mi=
+ddle;display: block;-ms-interpolation-mode: bicubic;height: auto;margin-bot=
+tom: 0;width: auto !important;max-width: 100% !important;margin: 0 auto;"><=
+/a></td><td style=3D"text-align: center;"></td></tr></tbody></table><figcap=
+tion class=3D"image-caption" style=3D"box-sizing: content-box;color: rgb(11=
+9,119,119);font-size: 14px;line-height: 20px;font-weight: 400;letter-spacin=
+g: -.15px;margin-top: 8px;width: 70%;padding-left: 15%;padding-right: 15%;t=
+ext-align: center;">The exact same model, Claude Opus 4.6, asked the exact =
+same question, &#8220;Compare ChatGPT and Claude and Gemini&#8221; in three=
+ different apps and harnesses. With no harness the information is out of da=
+te, on the Claude.ai site I get updated information and verifiable sources,=
+ using Claude Cowork, I get a sophisticated analysis and well-formatted hea=
+d-to-head comparisons</figcaption></figure></div><p style=3D"margin: 0 0 20=
+px 0;color: rgb(54,55,55);line-height: 26px;font-size: 16px;"><strong>Model=
+s</strong><span> are the underlying AI brains, and the big three are GPT-5.=
+2/5.3, Claude Opus 4.6, and Gemini 3 Pro (the companies are releasing new m=
+odels much more rapidly than the past, so version numbers may change in the=
+ coming weeks). These are what determine how smart the system is, how well =
+it reasons, how good it is at writing or coding or analyzing a spreadsheet,=
+ and how well it can see images or create them. Models are what the benchma=
+rks measure and what the AI companies race to improve. When people say &#82=
+20;Claude is better at writing&#8221; or &#8220;ChatGPT is better at math,&=
+#8221; they&#8217;re talking about models.</span></p><p style=3D"margin: 0 =
+0 20px 0;color: rgb(54,55,55);line-height: 26px;font-size: 16px;"><strong>A=
+pps</strong><span> are the products you actually use to talk to a model, an=
+d which let models do real work for you. The most common app is the website=
+ for each of these models: chatgpt.com, claude.ai, gemini.google.com (or el=
+se their equivalent application on your phone). Increasingly, there are oth=
+er apps made by each of these AI companies as well, including coding tools =
+like OpenAI Codex or </span><a href=3D"https://substack.com/redirect/9c3d4b=
+93-365b-41a5-b387-47b16288fa32?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cm=
+wzE5Ea6f_ojnL5QK7mo2IM" rel=3D"" style=3D"color: rgb(54,55,55);text-decorat=
+ion: underline;">Claude Code,</a><span> and desktop tools like Claude Cowor=
+k. </span></p><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-heig=
+ht: 26px;font-size: 16px;"><strong>Harnesses</strong><span> are what let th=
+e power of AI models do real work, like a horse harness takes the raw power=
+ of the horse and lets it pull a cart or plow. A harness is a system that l=
+ets the AI use tools, take actions, and complete multi-step tasks on its ow=
+n. Apps come with a harness. Claude on the website has a harness that lets =
+Claude 4.6 Opus do web searches and write code but also has instructions ab=
+out how to approach various problems like creating spreadsheets or doing gr=
+aphic design work. Claude Code has an even more extensive harness: it gives=
+ Claude 4.6 Opus a virtual computer, a web browser, a code terminal, and th=
+e ability to string these together to actually do stuff like researching, b=
+uilding, and testing your new website from scratch. Manus (recently acquire=
+d by Meta) was essentially a standalone harness that could wrap around mult=
+iple models. OpenClaw, which made big news recently, is mostly a harness th=
+at allows you to use any AI model locally on your computer. </span></p><p s=
+tyle=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px;font-size=
+: 16px;"><span>Until recently, you didn&#8217;t have to know this. The mode=
+l </span><em>was</em><span> the product, the app was the website, and the h=
+arness was minimal. You typed, it responded, you typed again. Now the same =
+model can behave very differently depending on what harness it&#8217;s oper=
+ating in. Claude Opus 4.6 talking to you in a chat window is a very differe=
+nt experience from Claude Opus 4.6 operating inside Claude Code, autonomous=
+ly writing and testing software for hours at a stretch. GPT-5.2 answering a=
+ question is a very different experience from GPT-5.2 Thinking navigating w=
+ebsites and building you a slide deck.</span></p><p style=3D"margin: 0 0 20=
+px 0;color: rgb(54,55,55);line-height: 26px;font-size: 16px;">It means that=
+ the question &#8220;which AI should I use?&#8221; has gotten harder to ans=
+wer, because the answer now depends on what you&#8217;re trying to do with =
+it. So let me walk through the landscape.</p><h2 class=3D"header-anchor-pos=
+t" style=3D"position: relative;font-family: 'SF Pro Display',-apple-system-=
+headline,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helve=
+tica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol=
+';font-weight: bold;-webkit-font-smoothing: antialiased;-moz-osx-font-smoot=
+hing: antialiased;-webkit-appearance: optimizelegibility;-moz-appearance: o=
+ptimizelegibility;appearance: optimizelegibility;margin: 1em 0 0.625em 0;co=
+lor: rgb(54,55,55);line-height: 1.16em;font-size: 1.625em;">The Models Righ=
+t Now</h2><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: =
+26px;font-size: 16px;">The top models are remarkably close in overall capab=
+ility and are generally &#8220;smarter&#8221; and make fewer errors than ev=
+er. But, if you want to use an advanced AI seriously, you&#8217;ll need to =
+pay at least $20 a month (though some areas of the world have alternate pla=
+ns that charge less). Those $20 get you two things: a choice of which model=
+ to use and the ability to use the more advanced frontier models and apps. =
+I wish I could tell you the free models currently available are as good as =
+the paid models, but they are not. The free models are all optimized for ch=
+at, rather than accuracy, so they are very fast and often more fun to talk =
+to, but much less accurate and capable. Often, when someone posts an exampl=
+e of an AI doing something stupid, it is because they are either using the =
+free models or because they have not selected a smarter model to work with.=
+</p><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px;f=
+ont-size: 16px;"><span>The big three frontier models are </span><a href=3D"=
+https://substack.com/redirect/2c8c5c33-f480-431d-b866-0f5c45492298?j=3DeyJ1=
+IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM" rel=3D"" style=
+=3D"color: rgb(54,55,55);text-decoration: underline;">Claude Opus 4.6 </a><=
+span>from Anthropic, Google&#8217;s </span><a href=3D"https://substack.com/=
+redirect/07205261-329b-403d-b7dd-94abc97990e3?j=3DeyJ1IjoiZjh6YWkifQ.72eujH=
+igXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM" rel=3D"" style=3D"color: rgb(54,55,5=
+5);text-decoration: underline;">Gemini 3.0 Pro</a><span>, and OpenAI&#8217;=
+s </span><a href=3D"https://substack.com/redirect/1a1c59fb-6e15-4b1a-88a3-e=
+0d8ae1f774f?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo=
+2IM" rel=3D"" style=3D"color: rgb(54,55,55);text-decoration: underline;">Ch=
+atGPT 5.2 Thinking</a><span>. With all of the options, you get access to to=
+p-of-the-line AI models with a voice mode, the ability to see images and do=
+cuments, the ability to execute code, good mobile apps, and the ability to =
+create images and video (Claude lacks here, however). They all have differe=
+nt personalities and strengths and weaknesses, but for most people, just se=
+lecting the one they like best will suffice. For now, the other companies i=
+n this space have fallen behind, whether in models or in apps and harnesses=
+, though some users may still have reasons for picking them.</span></p><div=
+ class=3D"captioned-image-container-static" style=3D"font-size: 16px;line-h=
+eight: 26px;margin: 32px auto;"><figure style=3D"width: 100%;margin: 0 auto=
+;"><table class=3D"image-wrapper" width=3D"100%" border=3D"0" cellspacing=
+=3D"0" cellpadding=3D"0" data-component-name=3D"Image2ToDOMStatic" style=3D=
+"mso-padding-alt: 1em 0 1.6em;"><tbody><tr><td style=3D"text-align: center;=
+"></td><td class=3D"content" align=3D"left" width=3D"1205" style=3D"text-al=
+ign: center;"><a class=3D"image-link" target=3D"_blank" href=3D"https://sub=
+stack.com/redirect/f2064dbf-c8b7-4bcc-a521-c61bf4fda95f?j=3DeyJ1IjoiZjh6YWk=
+ifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM" rel=3D"" style=3D"position=
+: relative;flex-direction: column;align-items: center;padding: 0;width: aut=
+o;height: auto;border: none;text-decoration: none;display: block;margin: 0;=
+"><img class=3D"wide-image" data-attrs=3D"{&quot;src&quot;:&quot;https://su=
+bstack-post-media.s3.amazonaws.com/public/images/58559981-9fb2-4a07-b3e6-b3=
+d0d73914e8_1205x428.png&quot;,&quot;srcNoWatermark&quot;:null,&quot;fullscr=
+een&quot;:null,&quot;imageSize&quot;:null,&quot;height&quot;:428,&quot;widt=
+h&quot;:1205,&quot;resizeWidth&quot;:null,&quot;bytes&quot;:59794,&quot;alt=
+&quot;:null,&quot;title&quot;:null,&quot;type&quot;:&quot;image/png&quot;,&=
+quot;href&quot;:null,&quot;belowTheFold&quot;:true,&quot;topImage&quot;:fal=
+se,&quot;internalRedirect&quot;:&quot;https://www.oneusefulthing.org/i/1881=
+00833?img=3Dhttps%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fi=
+mages%2F58559981-9fb2-4a07-b3e6-b3d0d73914e8_1205x428.png&quot;,&quot;isPro=
+cessing&quot;:false,&quot;align&quot;:null,&quot;offset&quot;:false}" alt=
+=3D"" width=3D"550" height=3D"195.35269709543567" src=3D"https://substackcd=
+n.com/image/fetch/$s_!uPZ-!,w_1100,c_limit,f_auto,q_auto:good,fl_progressiv=
+e:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimage=
+s%2F58559981-9fb2-4a07-b3e6-b3d0d73914e8_1205x428.png" style=3D"border: non=
+e !important;vertical-align: middle;display: block;-ms-interpolation-mode: =
+bicubic;height: auto;margin-bottom: 0;width: auto !important;max-width: 100=
+% !important;margin: 0 auto;"></a></td><td style=3D"text-align: center;"></=
+td></tr></tbody></table><figcaption class=3D"image-caption" style=3D"box-si=
+zing: content-box;color: rgb(119,119,119);font-size: 14px;line-height: 20px=
+;font-weight: 400;letter-spacing: -.15px;margin-top: 8px;width: 70%;padding=
+-left: 15%;padding-right: 15%;text-align: center;">This is only a slight ex=
+aggeration - for casual chats where being right doesn&#8217;t matter, you c=
+an use smaller models, otherwise please pick advanced models!</figcaption><=
+/figure></div><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-heig=
+ht: 26px;font-size: 16px;"><span>When you are using any AI app (more on tho=
+se shortly), including phone apps or websites, </span><strong>the single mo=
+st important thing you can do is pick the right model,</strong><span> which=
+ the AI companies do not make easy. If you are just chatting, the default m=
+odels are fine, if you want to do real work, they are not. For ChatGPT, no =
+matter whether you use the free or pay version, the default model you are g=
+iven is &#8220;ChatGPT 5.2&#8221;. The issue is that GPT-5.2 is not one mod=
+el, it is many, from the very weak GPT-5.2 mini to the very good GPT-5.2 Th=
+inking to the extremely powerful GPT-5.2 Pro. When you select GPT-5.2, what=
+ you are really getting is &#8220;auto&#8221; mode, where the AI decides wh=
+ich model to use, often a less powerful one. By paying, you get to decide w=
+hich model to use, and, to further complicate things, you can also select h=
+ow hard the model &#8220;thinks&#8221; about the answer. For anything compl=
+ex, I always manually select </span><strong>GPT-5.2 Thinking Extended</stro=
+ng><span> (on the $20 plan) or </span><strong>GPT-5.2 Thinking Heavy</stron=
+g><span> (on more expensive plans). For a really hard problem that requires=
+ a lot of thinking, you can pick GPT-5.2 Pro, the strongest model, which is=
+ only available at a higher cost tier.</span></p><p style=3D"margin: 0 0 20=
+px 0;color: rgb(54,55,55);line-height: 26px;font-size: 16px;"><span>For Gem=
+ini, there are three options: Gemini 3 Flash, Gemini 3 Thinking, and, for s=
+ome paid plans, 3 Pro. If you pay for the Ultra plan, you get access to Gem=
+ini Deep Think for very hard problems (which is in another menu entirely). =
+Always pick </span><strong>Gemini 3 Pro or Thinking</strong><span> for any =
+serious problem. For Claude, you need to pick </span><strong>Opus 4.6</stro=
+ng><span> (though the new </span><strong>Sonnet 4.6 </strong><span>is also =
+powerful, it is not quite as good) and turn on the &#8220;extended thinking=
+&#8221; switch.</span></p><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,5=
+5);line-height: 26px;font-size: 16px;"><span>Again, for most people, the mo=
+del differences are now small enough that the </span><em>app </em><span>and=
+ </span><em>harness</em><span> matter more than the model. Which brings us =
+to the bigger question.</span></p><h2 class=3D"header-anchor-post" style=3D=
+"position: relative;font-family: 'SF Pro Display',-apple-system-headline,sy=
+stem-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,=
+sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';font-weig=
+ht: bold;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: antia=
+liased;-webkit-appearance: optimizelegibility;-moz-appearance: optimizelegi=
+bility;appearance: optimizelegibility;margin: 1em 0 0.625em 0;color: rgb(54=
+,55,55);line-height: 1.16em;font-size: 1.625em;">The Chatbot Interfaces</h2=
+><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px;font=
+-size: 16px;">The vast majority of people use chatbots, the main websites o=
+r mobile apps of ChatGPT, Claude, and Gemini, to access their AI models. In=
+ fact, we can call the chatbot the most important and widespread AI app. In=
+ the past few months, these apps have become quite different from each othe=
+r.</p><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px=
+;font-size: 16px;">Some of the differences are which features are bundled w=
+ith AI:</p><ul style=3D"margin-top: 0;padding: 0;"><li style=3D"margin: 8px=
+ 0 0 32px;mso-special-format: bullet;"><p style=3D"color: rgb(54,55,55);lin=
+e-height: 26px;margin-bottom: 0;box-sizing: border-box;padding-left: 4px;fo=
+nt-size: 16px;margin: 0;">Bundled into the Gemini chatbot (and accessible w=
+ith the little plus button): you can access nano banana (the best current A=
+I image creation tool), Veo 3.1 (a leading AI video creation tool), Guided =
+Learning (when trying to study, this helps the AI act more like a tutor), a=
+nd Deep Research</p></li><li style=3D"margin: 8px 0 0 32px;mso-special-form=
+at: bullet;"><p style=3D"color: rgb(54,55,55);line-height: 26px;margin-bott=
+om: 0;box-sizing: border-box;padding-left: 4px;font-size: 16px;margin: 0;">=
+Bundled into ChatGPT is even more of a hodgepodge of options accessible wit=
+h the plus button. You can Create Images (the image generator is almost as =
+good as nano banana, but you can&#8217;t access the Sora video creator thro=
+ugh the chatbot), Study and Learn (the equivalent to Guided Learning in Gem=
+ini, but there is also a separate Quizzes creator for some reason), Deep Re=
+search and Shopping Research (surprisingly good and overlooked), and a set =
+of other options that most people will not use often, so I won&#8217;t cove=
+r here.</p></li><li style=3D"margin: 8px 0 0 32px;mso-special-format: bulle=
+t;"><p style=3D"color: rgb(54,55,55);line-height: 26px;margin-bottom: 0;box=
+-sizing: border-box;padding-left: 4px;font-size: 16px;margin: 0;">Claude ha=
+s only Deep Research as bundled option, but you can access a study mode by =
+creating a Project and selecting study project. </p></li><li style=3D"margi=
+n: 8px 0 0 32px;mso-special-format: bullet;"><p style=3D"color: rgb(54,55,5=
+5);line-height: 26px;margin-bottom: 0;box-sizing: border-box;padding-left: =
+4px;font-size: 16px;margin: 0;">All of the AI models let you connect to dat=
+a, such as letting the AI read your email and calendar, access your files, =
+or connect to other applications. This can make AI far more useful, but, ag=
+ain, each AI tool has a different set of connectors you can use.</p></li></=
+ul><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px;fo=
+nt-size: 16px;">These are confusing! For most people doing real work, the m=
+ost important additional feature is Deep Research and connecting AI to your=
+ content, but you may want to experiment with the others. Increasingly, how=
+ever, what matters is the harness - the tools the AI has access to. And her=
+e, OpenAI and Anthropic have clear leads over Google. Both Claude.ai and Ch=
+atGPT have the ability to write and execute code, give you files, do extens=
+ive research, and a lot more.  Google&#8217;s Gemini website is much less c=
+apable (even though its AI model is just as good),</p><div class=3D"caption=
+ed-image-container-static" style=3D"font-size: 16px;line-height: 26px;margi=
+n: 32px auto;"><figure style=3D"width: 100%;margin: 0 auto;"><table class=
+=3D"image-wrapper" width=3D"100%" border=3D"0" cellspacing=3D"0" cellpaddin=
+g=3D"0" data-component-name=3D"Image2ToDOMStatic" style=3D"mso-padding-alt:=
+ 1em 0 1.6em;"><tbody><tr><td style=3D"text-align: center;"></td><td class=
+=3D"content" align=3D"left" width=3D"1456" style=3D"text-align: center;"><a=
+ class=3D"image-link" target=3D"_blank" href=3D"https://substack.com/redire=
+ct/64b021cd-402e-4fe0-b2fb-9a00c14c0273?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWy=
+Sh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM" rel=3D"" style=3D"position: relative;flex-=
+direction: column;align-items: center;padding: 0;width: auto;height: auto;b=
+order: none;text-decoration: none;display: block;margin: 0;"><img class=3D"=
+wide-image" data-attrs=3D"{&quot;src&quot;:&quot;https://substack-post-medi=
+a.s3.amazonaws.com/public/images/44e62d7f-ed4c-44d3-bc93-b4b2867a581b_5312x=
+4355.png&quot;,&quot;srcNoWatermark&quot;:null,&quot;fullscreen&quot;:null,=
+&quot;imageSize&quot;:null,&quot;height&quot;:1194,&quot;width&quot;:1456,&=
+quot;resizeWidth&quot;:null,&quot;bytes&quot;:2617136,&quot;alt&quot;:null,=
+&quot;title&quot;:null,&quot;type&quot;:&quot;image/png&quot;,&quot;href&qu=
+ot;:null,&quot;belowTheFold&quot;:true,&quot;topImage&quot;:false,&quot;int=
+ernalRedirect&quot;:&quot;https://www.oneusefulthing.org/i/188100833?img=3D=
+https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F44e6=
+2d7f-ed4c-44d3-bc93-b4b2867a581b_5312x4355.png&quot;,&quot;isProcessing&quo=
+t;:false,&quot;align&quot;:null,&quot;offset&quot;:false}" alt=3D"" width=
+=3D"550" height=3D"451.0302197802198" src=3D"https://substackcdn.com/image/=
+fetch/$s_!sNyH!,w_1100,c_limit,f_auto,q_auto:good,fl_progressive:steep/http=
+s%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F44e62d7f=
+-ed4c-44d3-bc93-b4b2867a581b_5312x4355.png" style=3D"border: none !importan=
+t;vertical-align: middle;display: block;-ms-interpolation-mode: bicubic;hei=
+ght: auto;margin-bottom: 0;width: auto !important;max-width: 100% !importan=
+t;margin: 0 auto;"></a></td><td style=3D"text-align: center;"></td></tr></t=
+body></table></figure></div><p style=3D"margin: 0 0 20px 0;color: rgb(54,55=
+,55);line-height: 26px;font-size: 16px;">As you can see, asking a similar q=
+uestion gets working spreadsheets and PowerPoints from ChatGPT and Claude, =
+along with clear citations I can follow up on. Gemini, however, is unable t=
+o produce either kind of document, and it does not provide citations or res=
+earch. I do expect that Google will catch up here soon, however.</p><p styl=
+e=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px;font-size: 1=
+6px;"><span>One final note on Chatbots. GPT-5.2 Pro, with the harness that =
+comes with it, is a VERY smart model. It is the model that just helped </sp=
+an><a href=3D"https://substack.com/redirect/569efa97-4f76-4fd9-954e-9fba58c=
+8e982?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM" r=
+el=3D"" style=3D"color: rgb(54,55,55);text-decoration: underline;">derive a=
+ novel result in physics</a><span> and it is the one I find most capable of=
+ doing complex statistical and analytical work. It is only accessible throu=
+gh more expensive plans. Google Gemini 3 Deep Think also seems very capable=
+, but suffers from the same harness problem.</span></p><div class=3D"captio=
+ned-image-container-static" style=3D"font-size: 16px;line-height: 26px;marg=
+in: 32px auto;"><figure style=3D"width: 100%;margin: 0 auto;"><table class=
+=3D"image-wrapper" width=3D"100%" border=3D"0" cellspacing=3D"0" cellpaddin=
+g=3D"0" data-component-name=3D"Image2ToDOMStatic" style=3D"mso-padding-alt:=
+ 1em 0 1.6em;"><tbody><tr><td style=3D"text-align: center;"></td><td class=
+=3D"content" align=3D"left" width=3D"318" style=3D"text-align: center;"><a =
+class=3D"image-link" target=3D"_blank" href=3D"https://substack.com/redirec=
+t/3d0f9397-e6f4-4087-aba6-f03a259ad6dc?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWyS=
+h5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM" rel=3D"" style=3D"position: relative;flex-d=
+irection: column;align-items: center;padding: 0;width: auto;height: auto;bo=
+rder: none;text-decoration: none;display: block;margin: 0;"><img data-attrs=
+=3D"{&quot;src&quot;:&quot;https://substack-post-media.s3.amazonaws.com/pub=
+lic/images/bf7efcae-93af-4ebf-bc6e-dbad488b63c8_1892x2888.png&quot;,&quot;s=
+rcNoWatermark&quot;:null,&quot;fullscreen&quot;:null,&quot;imageSize&quot;:=
+null,&quot;height&quot;:2222,&quot;width&quot;:1456,&quot;resizeWidth&quot;=
+:318,&quot;bytes&quot;:2752690,&quot;alt&quot;:null,&quot;title&quot;:null,=
+&quot;type&quot;:&quot;image/png&quot;,&quot;href&quot;:null,&quot;belowThe=
+Fold&quot;:true,&quot;topImage&quot;:false,&quot;internalRedirect&quot;:&qu=
+ot;https://www.oneusefulthing.org/i/188100833?img=3Dhttps%3A%2F%2Fsubstack-=
+post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fbf7efcae-93af-4ebf-bc6e-dba=
+d488b63c8_1892x2888.png&quot;,&quot;isProcessing&quot;:false,&quot;align&qu=
+ot;:null,&quot;offset&quot;:false}" alt=3D"" width=3D"318" height=3D"485.29=
+945054945057" src=3D"https://substackcdn.com/image/fetch/$s_!YiA6!,w_318,c_=
+limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-m=
+edia.s3.amazonaws.com%2Fpublic%2Fimages%2Fbf7efcae-93af-4ebf-bc6e-dbad488b6=
+3c8_1892x2888.png" style=3D"border: none !important;vertical-align: middle;=
+display: block;-ms-interpolation-mode: bicubic;height: auto;margin-bottom: =
+0;width: auto !important;max-width: 100% !important;margin: 0 auto;"></a></=
+td><td style=3D"text-align: center;"></td></tr></tbody></table><figcaption =
+class=3D"image-caption" style=3D"box-sizing: content-box;color: rgb(119,119=
+,119);font-size: 14px;line-height: 20px;font-weight: 400;letter-spacing: -.=
+15px;margin-top: 8px;width: 70%;padding-left: 15%;padding-right: 15%;text-a=
+lign: center;">Prompt: &#8220;you are an economic sociologist. I want you t=
+o figure out some novel hypotheses you can test with this data, do sophisti=
+cated experiments, and tell me the findings.&#8221; and I gave it a large e=
+xcel dataset.</figcaption></figure></div><p style=3D"margin: 0 0 20px 0;col=
+or: rgb(54,55,55);line-height: 26px;font-size: 16px;"></p><h2 class=3D"head=
+er-anchor-post" style=3D"position: relative;font-family: 'SF Pro Display',-=
+apple-system-headline,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI'=
+,Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Se=
+goe UI Symbol';font-weight: bold;-webkit-font-smoothing: antialiased;-moz-o=
+sx-font-smoothing: antialiased;-webkit-appearance: optimizelegibility;-moz-=
+appearance: optimizelegibility;appearance: optimizelegibility;margin: 1em 0=
+ 0.625em 0;color: rgb(54,55,55);line-height: 1.16em;font-size: 1.625em;">Ot=
+her apps and harnesses</h2><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,=
+55);line-height: 26px;font-size: 16px;">The chatbot websites are where most=
+ people interact with AI, but they are increasingly not where the most impr=
+essive work gets done. A growing set of other apps wrap these same models i=
+n more powerful harnesses, and they matter.</p><p style=3D"margin: 0 0 20px=
+ 0;color: rgb(54,55,55);line-height: 26px;font-size: 16px;"><strong>Claude =
+Code, OpenAI Codex, and Google Antigravity</strong><span> are the most well=
+-developed of these, and they are all aimed at coders. Each of them gives a=
+n AI model access to your codebase, a terminal, and the ability to write, r=
+un, and test code on its own. You describe what you want built and the AI g=
+oes and builds it, coming back when it&#8217;s done or stuck. If you write =
+code for a living, these tools are changing your job. Because they have the=
+ most extensive harnesses, even if you don&#8217;t code, they can still do =
+a tremendous amount.</span></p><p style=3D"margin: 0 0 20px 0;color: rgb(54=
+,55,55);line-height: 26px;font-size: 16px;"><span>For example, a couple yea=
+rs ago, I became interested in how you would make an entirely paper-based L=
+LM by providing all of the original GPT-1&#8217;s internal weights and para=
+meters (the code of the AI, listed as 117 million numbers) in a set of book=
+s. In theory, with enough time, you could use those numbers to do the math =
+of an AI by hand. This seemed like a fun idea, but obviously not worth doin=
+g. A week ago, I asked Claude Code to just do it for me. Over the course of=
+ an hour or so (mostly the AI working, with a couple suggestions), it made =
+80 beautifully laid out volumes containing all of GPT-1, along with a guide=
+ to the math. It also came up with, and executed, covers for each volume th=
+at visualized the interior weights. It then put together a very elegant web=
+site (including the animation below), hooked it up to Stripe for payment an=
+d Lulu to print on demand, tested the whole thing, and launched it for me. =
+I never touched or looked at any code. I had it make 20 books available at =
+cost to see what happened - and sold out the same day. All of the volumes a=
+re still available as </span><a href=3D"https://substack.com/redirect/74ec0=
+416-2661-4b0a-88f1-ef94d8391f59?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3c=
+mwzE5Ea6f_ojnL5QK7mo2IM" rel=3D"" style=3D"color: rgb(54,55,55);text-decora=
+tion: underline;">free PDFs on the site</a><span>. Now, I can have a little=
+ project idea that would have required a lot of work, and just have it exec=
+uted for me with very little effort on my part. </span></p><div class=3D"vi=
+deo-player-with-background is-static video-player-wrapper" role=3D"region" =
+aria-label=3D"Video player" style=3D"flex-grow: 1;font-size: 16px;line-heig=
+ht: 26px;margin-top: 0.5em;"><a class=3D"video-player video-player-with-bac=
+kground" href=3D"https://substack.com/redirect/4e302564-3b8e-49cb-82a5-1e0d=
+f82bd9c2?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM=
+" style=3D"position: relative;display: block;width: 100%;cursor: pointer;ba=
+ckground-color: rgb(0,0,0);height: auto;border-radius: 8px;padding-bottom: =
+0"><img class=3D"video-player-preview" width=3D"550" src=3D"https://substac=
+kcdn.com/image/fetch/$s_!DSoT!,w_1100,h_646,c_pad,f_auto,q_auto:good,fl_pro=
+gressive:steep/l_play_button_usfui2,w_144,e_colorize:0/https%3A%2F%2Fsubsta=
+ck-video.s3.amazonaws.com%2Fvideo_upload%2Fpost%2F188100833%2Fdd569882-f238=
+-48f6-9141-ecba8d883237%2Ftranscoded-00001.png" data-component-name=3D"Vide=
+oPlayer-PreviewImg" data-testid=3D"video-player-static-preview-image" style=
+=3D"border: none !important;vertical-align: middle;display: block;-ms-inter=
+polation-mode: bicubic;max-width: 100%;height: auto;margin: 0 auto;width: 1=
+00%;max-height: 100%;background: black;cursor: pointer;position: relative;b=
+order-radius: 8px;"></a></div><p style=3D"margin: 0 0 20px 0;color: rgb(54,=
+55,55);line-height: 26px;font-size: 16px;">But the coding harnesses remain =
+risky for amateurs and, obviously, focused on coding. New apps and harnesse=
+s are starting to focus on other types of knowledge work.</p><p style=3D"ma=
+rgin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px;font-size: 16px;"><=
+strong>Claude for Excel and Powerpoint </strong><span>are examples of speci=
+fic harnesses inside of applications. Both of them provide very impressive =
+extensions to these programs. Claude for Excel, in particular, feels like a=
+ massive change in working with spreadsheets, with the potential for a simi=
+lar impact to Claude Code for those who work with Excel for a living - you =
+can, increasingly, tell the AI what you want to do and it acts a sort of ju=
+nior analyst and does the work. Because the results are in Excel, they are =
+easy to check. Google has some integration with Google Sheets (but not as d=
+eeply) and OpenAI does not really have an equivalent product.</span></p><di=
+v class=3D"captioned-image-container-static" style=3D"font-size: 16px;line-=
+height: 26px;margin: 32px auto;"><figure style=3D"width: 100%;margin: 0 aut=
+o;"><table class=3D"image-wrapper" width=3D"100%" border=3D"0" cellspacing=
+=3D"0" cellpadding=3D"0" data-component-name=3D"Image2ToDOMStatic" style=3D=
+"mso-padding-alt: 1em 0 1.6em;"><tbody><tr><td style=3D"text-align: center;=
+"></td><td class=3D"content" align=3D"left" width=3D"501" style=3D"text-ali=
+gn: center;"><a class=3D"image-link" target=3D"_blank" href=3D"https://subs=
+tack.com/redirect/44ae9c4a-c6fc-4030-b38b-6d2185af9fb6?j=3DeyJ1IjoiZjh6YWki=
+fQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM" rel=3D"" style=3D"position:=
+ relative;flex-direction: column;align-items: center;padding: 0;width: auto=
+;height: auto;border: none;text-decoration: none;display: block;margin: 0;"=
+><img data-attrs=3D"{&quot;src&quot;:&quot;https://substack-post-media.s3.a=
+mazonaws.com/public/images/cc527f70-b3e4-498b-80bb-bfa03f24dd5b_1900x1175.p=
+ng&quot;,&quot;srcNoWatermark&quot;:null,&quot;fullscreen&quot;:null,&quot;=
+imageSize&quot;:null,&quot;height&quot;:900,&quot;width&quot;:1456,&quot;re=
+sizeWidth&quot;:501,&quot;bytes&quot;:null,&quot;alt&quot;:&quot;Image&quot=
+;,&quot;title&quot;:null,&quot;type&quot;:null,&quot;href&quot;:null,&quot;=
+belowTheFold&quot;:true,&quot;topImage&quot;:false,&quot;internalRedirect&q=
+uot;:null,&quot;isProcessing&quot;:false,&quot;align&quot;:null,&quot;offse=
+t&quot;:false}" alt=3D"Image" title=3D"Image" width=3D"501" height=3D"309.6=
+840659340659" src=3D"https://substackcdn.com/image/fetch/$s_!IOnc!,w_501,c_=
+limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-m=
+edia.s3.amazonaws.com%2Fpublic%2Fimages%2Fcc527f70-b3e4-498b-80bb-bfa03f24d=
+d5b_1900x1175.png" style=3D"border: none !important;vertical-align: middle;=
+display: block;-ms-interpolation-mode: bicubic;height: auto;margin-bottom: =
+0;width: auto !important;max-width: 100% !important;margin: 0 auto;"></a></=
+td><td style=3D"text-align: center;"></td></tr></tbody></table></figure></d=
+iv><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px;fo=
+nt-size: 16px;"><strong><a href=3D"https://substack.com/redirect/42b8f7df-8=
+784-4ea6-8985-6292952737a9?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5=
+Ea6f_ojnL5QK7mo2IM" rel=3D"" style=3D"color: rgb(54,55,55);text-decoration:=
+ underline;">Claude Cowork</a></strong><span> is something genuinely new, a=
+nd it deserves its own category. Released by Anthropic in January, Cowork i=
+s essentially Claude Code for non-technical work. It runs on your desktop a=
+nd can work directly with your local files and your browser. However, it is=
+ much more secure than Claude Code and less dangerous for non-technical use=
+rs (it runs in a VM with default-deny networking and hard isolation baked i=
+n, for those who care about the details) You describe an outcome (organize =
+these expense reports, pull data from these PDFs into a spreadsheet, draft =
+a summary) and Claude makes a plan, breaks it into subtasks, and executes t=
+hem on your computer while you watch (or don&#8217;t). It was built on the =
+same agentic architecture as Claude Code, and was itself largely built </sp=
+an><em>by</em><span> Claude Code in about two weeks. Neither OpenAI or Goog=
+le have a direct equivalent, at least this week. Cowork is still a research=
+ preview, meaning it&#8217;s early and will eat through your usage limits f=
+ast, but it is a clear sign of where all of this is heading: AI that doesn&=
+#8217;t just talk to you about your work, but does your work.</span></p><di=
+v class=3D"captioned-image-container-static" style=3D"font-size: 16px;line-=
+height: 26px;margin: 32px auto;"><figure style=3D"width: 100%;margin: 0 aut=
+o;"><table class=3D"image-wrapper" width=3D"100%" border=3D"0" cellspacing=
+=3D"0" cellpadding=3D"0" data-component-name=3D"Image2ToDOMStatic" style=3D=
+"mso-padding-alt: 1em 0 1.6em;"><tbody><tr><td style=3D"text-align: center;=
+"></td><td class=3D"content" align=3D"left" width=3D"612" style=3D"text-ali=
+gn: center;"><a class=3D"image-link" target=3D"_blank" href=3D"https://subs=
+tack.com/redirect/d563bd5f-7833-401f-a754-22f89e7175dd?j=3DeyJ1IjoiZjh6YWki=
+fQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM" rel=3D"" style=3D"position:=
+ relative;flex-direction: column;align-items: center;padding: 0;width: auto=
+;height: auto;border: none;text-decoration: none;display: block;margin: 0;"=
+><img class=3D"wide-image" data-attrs=3D"{&quot;src&quot;:&quot;https://sub=
+stack-post-media.s3.amazonaws.com/public/images/933c53d7-43f9-455e-b4e7-2ee=
+52f4a33ee_1565x1184.png&quot;,&quot;srcNoWatermark&quot;:null,&quot;fullscr=
+een&quot;:null,&quot;imageSize&quot;:null,&quot;height&quot;:1102,&quot;wid=
+th&quot;:1456,&quot;resizeWidth&quot;:612,&quot;bytes&quot;:631252,&quot;al=
+t&quot;:null,&quot;title&quot;:null,&quot;type&quot;:&quot;image/png&quot;,=
+&quot;href&quot;:null,&quot;belowTheFold&quot;:true,&quot;topImage&quot;:fa=
+lse,&quot;internalRedirect&quot;:&quot;https://www.oneusefulthing.org/i/188=
+100833?img=3Dhttps%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2F=
+images%2F933c53d7-43f9-455e-b4e7-2ee52f4a33ee_1565x1184.png&quot;,&quot;isP=
+rocessing&quot;:false,&quot;align&quot;:null,&quot;offset&quot;:false}" alt=
+=3D"" width=3D"550" height=3D"416.2774725274725" src=3D"https://substackcdn=
+=2Ecom/image/fetch/$s_!5NR5!,w_1100,c_l=
+imit,f_auto,q_auto:good,fl_progressive=
+:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages=
+%2F933c53d7-43f9-455e-b4e7-2ee52f4a33ee_1565x1184.png" style=3D"border: non=
+e !important;vertical-align: middle;display: block;-ms-interpolation-mode: =
+bicubic;height: auto;margin-bottom: 0;width: auto !important;max-width: 100=
+% !important;margin: 0 auto;"></a></td><td style=3D"text-align: center;"></=
+td></tr></tbody></table><figcaption class=3D"image-caption" style=3D"box-si=
+zing: content-box;color: rgb(119,119,119);font-size: 14px;line-height: 20px=
+;font-weight: 400;letter-spacing: -.15px;margin-top: 8px;width: 70%;padding=
+-left: 15%;padding-right: 15%;text-align: center;">NotebookLM lets you cond=
+uct research reports and gather source documents (on the left), ask questio=
+ns of the sources and material (the middle) and turn them into things like =
+slide shows (on the right)</figcaption></figure></div><p style=3D"margin: 0=
+ 0 20px 0;color: rgb(54,55,55);line-height: 26px;font-size: 16px;"><strong>=
+<a href=3D"https://substack.com/redirect/ca3e4e87-790e-45ec-aac3-1f1a6ae4dd=
+45?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM" rel=
+=3D"" style=3D"color: rgb(54,55,55);text-decoration: underline;">NotebookLM=
+</a></strong><span> is Google&#8217;s answer to a different problem: how do=
+ you use AI to make sense of a lot of information? You can ask NotebookLM t=
+o do its own deep research, or else add in your own papers, YouTube videos,=
+ websites, or files, and NotebookLM builds an interactive knowledge base yo=
+u can query, turn into slides, mind maps, videos and, most famously, AI-gen=
+erated podcasts where two hosts discuss your material (you can even interru=
+pt the hosts to ask questions). If you are a student, a researcher, or anyo=
+ne who regularly needs to make sense of a pile of documents, NotebookLM is =
+a very useful tool..</span></p><p style=3D"margin: 0 0 20px 0;color: rgb(54=
+,55,55);line-height: 26px;font-size: 16px;"><span>And then there is </span>=
+<strong>OpenClaw</strong><span>, which I want to mention even though it doe=
+sn&#8217;t fit neatly into any of these categories and which you almost def=
+initely shouldn&#8217;t use. OpenClaw is an open-source AI agent that went =
+viral in late January. It runs locally on your computer, connects to whatev=
+er AI model you want, and you talk to it like you were chatting with a pers=
+on using standard chats like WhatsApp or iMessage. It can browse the web, m=
+anage your files, send emails, and run commands. It is sort of a 24/7 perso=
+nal assistant that lives on your machine. It is also a serious security ris=
+k: you are giving an AI broad access to your computer and your accounts, an=
+d no one knows exactly what dangers you are exposing yourself to. But it do=
+es serve as a sign of where things are going.</span></p><h1 class=3D"header=
+-anchor-post" style=3D"position: relative;font-family: 'SF Pro Display',-ap=
+ple-system-headline,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',R=
+oboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Sego=
+e UI Symbol';font-weight: bold;-webkit-font-smoothing: antialiased;-moz-osx=
+-font-smoothing: antialiased;-webkit-appearance: optimizelegibility;-moz-ap=
+pearance: optimizelegibility;appearance: optimizelegibility;margin: 1em 0 0=
+=2E625em 0;color: rgb(54,55,55);line-he=
+ight: 1.16em;font-size: 2em;"><strong>=
+What to do now</strong></h1><p style=3D"margin: 0 0 20px 0;color: rgb(54,55=
+,55);line-height: 26px;font-size: 16px;">I know this is a lot. Let me simpl=
+ify.</p><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26=
+px;font-size: 16px;"><span>If you are just getting started, pick one of the=
+ three systems (ChatGPT, Claude, or Gemini), pay the $20, and select the ad=
+vanced model. The advice from my book still holds: invite AI to everything =
+you do. Start using it for real work. Upload a document you&#8217;re actual=
+ly working on. </span><a href=3D"https://substack.com/redirect/554b12cf-e23=
+9-4beb-8f9b-2dafbc226734?j=3DeyJ1IjoiZjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea=
+6f_ojnL5QK7mo2IM" rel=3D"" style=3D"color: rgb(54,55,55);text-decoration: u=
+nderline;">Give the AI a very complex task in the form of an RFP or SOP.</a=
+><span> Have a back-and-forth conversation and push it. This alone will tea=
+ch you more than any guide.</span></p><p style=3D"margin: 0 0 20px 0;color:=
+ rgb(54,55,55);line-height: 26px;font-size: 16px;">If you are already comfo=
+rtable with chatbots, try the specific apps. NotebookLM is free and easy to=
+ use, which makes it a good starting place. If you want to go deeper, Anthr=
+opic offers the most powerful package in Claude Code, Claude Cowork (both a=
+ccessible through Claude Desktop) as well as the specialized PowerPoint and=
+ Excel Plugins. Give them a try. Again, not as a demo, but with something y=
+ou actually need done. Watch what it does. Steer it when it goes wrong. You=
+ aren&#8217;t prompting, you are (as I wrote in my last piece) managing.</p=
+><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px;font=
+-size: 16px;">The shift from chatbot to agent is the most important change =
+in how people use AI since ChatGPT launched. It is still early, and these t=
+ools are still hard to figure out and will still do baffling things. But an=
+ AI that does things is fundamentally more useful than an AI that says thin=
+gs, and learning to use it that way is worth your time.</p><div class=3D"su=
+bscribe-widget is-signed-up" data-component-name=3D"SubscribeWidget" style=
+=3D"margin: 0 0 1em;direction: ltr;font-size: 16px;line-height: 26px;"><div=
+ class=3D"pencraft pc-reset button-wrapper" style=3D"text-decoration: unset=
+;list-style: none;font-size: 16px;line-height: 26px;text-align: center;curs=
+or: pointer;border-radius: 4px;"><a class=3D"button subscribe-btn primary" =
+href=3D"https://substack.com/redirect/2/eyJlIjoiaHR0cHM6Ly93d3cub25ldXNlZnV=
+sdGhpbmcub3JnL3N1YnNjcmliZT91dG1fc291cmNlPXBvc3QmdXRtX2NhbXBhaWduPWVtYWlsLW=
+NoZWNrb3V0Jm5leHQ9aHR0cHMlM0ElMkYlMkZ3d3cub25ldXNlZnVsdGhpbmcub3JnJTJGcCUyR=
+mEtZ3VpZGUtdG8td2hpY2gtYWktdG8tdXNlLWluLXRoZSZyPWY4emFpJnRva2VuPWV5SjFjMlZ5=
+WDJsa0lqb3lOVFl4TXpJeU5pd2lhV0YwSWpveE56Y3hNemM1TVRVMExDSmxlSEFpT2pFM056TTV=
+OekV4TlRRc0ltbHpjeUk2SW5CMVlpMHhNVGd3TmpRMElpd2ljM1ZpSWpvaVkyaGxZMnR2ZFhRaW=
+ZRLjBjTGlFekkxaDllWUo2U0ozSDUxcnE2aDBzcUZOSnhoRFZHRmtSM1VQTU0iLCJwIjoxODgxM=
+DA4MzMsInMiOjExODA2NDQsImYiOnRydWUsInUiOjI1NjEzMjI2LCJpYXQiOjE3NzEzNzkxNTQs=
+ImV4cCI6MjA4Njk1NTE1NCwiaXNzIjoicHViLTAiLCJzdWIiOiJsaW5rLXJlZGlyZWN0In0.xV_=
+cnba9Ibn0aSoonBM-_kzGL6S4JfsfjtFHGyBXrCA?&utm_medium=3Demail&utm_source=3Ds=
+ubscribe-widget&utm_content=3D188100833" style=3D"font-family: system-ui,-a=
+pple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif=
+,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';display: inline-blo=
+ck;box-sizing: border-box;cursor: pointer;border: none;border-radius: 8px;f=
+ont-size: 14px;line-height: 20px;font-weight: 600;text-align: center;opacit=
+y: 1;outline: none;white-space: nowrap;text-decoration: none !important;mar=
+gin: 0 auto;background-color: #BAA049;color: #ffffff !important;padding: 12=
+px 20px;height: auto;"><span style=3D"color: #ffffff;text-decoration: none;=
+">Upgrade to paid</span></a></div></div><p class=3D"button-wrapper" data-at=
+trs=3D"{&quot;url&quot;:&quot;https://substack.com/app-link/post?publicatio=
+n_id=3D1180644&post_id=3D188100833&utm_source=3Dsubstack&utm_medium=3Demail=
+&utm_content=3Dshare&utm_campaign=3Demail-share&action=3Dshare&triggerShare=
+=3Dtrue&isFreemail=3Dtrue&r=3Df8zai&token=REDACTED&quot;,&quot;text&quot;:&quot;Share&quot;,&quot;action&qu=
+ot;:null,&quot;class&quot;:null}" data-component-name=3D"ButtonCreateButton=
+" style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px;font-s=
+ize: 16px;text-align: center;cursor: pointer;border-radius: 4px;"><a class=
+=3D"button primary" href=3D"https://substack.com/app-link/post?publication_=
+id=3D1180644&post_id=3D188100833&utm_source=3Dsubstack&utm_medium=3Demail&u=
+tm_content=3Dshare&utm_campaign=3Demail-share&action=3Dshare&triggerShare=
+=3Dtrue&isFreemail=3Dtrue&r=3Df8zai&token=REDACTED" rel=3D"" style=3D"font-family: system-ui,-apple-system,=
+BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Colo=
+r Emoji','Segoe UI Emoji','Segoe UI Symbol';display: inline-block;box-sizin=
+g: border-box;cursor: pointer;border: none;border-radius: 8px;font-size: 14=
+px;line-height: 20px;font-weight: 600;text-align: center;margin: 0;opacity:=
+ 1;outline: none;white-space: nowrap;color: #ffffff !important;text-decorat=
+ion: none !important;background-color: #BAA049;padding: 12px 20px;height: a=
+uto;"><span style=3D"color: #ffffff;text-decoration: none;">Share</span></a=
+></p><div class=3D"captioned-image-container-static" style=3D"font-size: 16=
+px;line-height: 26px;margin: 32px auto;"><figure style=3D"width: 100%;margi=
+n: 0 auto;"><table class=3D"image-wrapper" width=3D"100%" border=3D"0" cell=
+spacing=3D"0" cellpadding=3D"0" data-component-name=3D"Image2ToDOMStatic" s=
+tyle=3D"mso-padding-alt: 1em 0 1.6em;"><tbody><tr><td style=3D"text-align: =
+center;"></td><td class=3D"content" align=3D"left" width=3D"1456" style=3D"=
+text-align: center;"><a class=3D"image-link" target=3D"_blank" href=3D"http=
+s://substack.com/redirect/f03ace11-ec43-44cf-9331-cd779b3b5d66?j=3DeyJ1Ijoi=
+Zjh6YWkifQ.72eujHigXfWySh5Pw-3cmwzE5Ea6f_ojnL5QK7mo2IM" rel=3D"" style=3D"p=
+osition: relative;flex-direction: column;align-items: center;padding: 0;wid=
+th: auto;height: auto;border: none;text-decoration: none;display: block;mar=
+gin: 0;"><img class=3D"wide-image" data-attrs=3D"{&quot;src&quot;:&quot;htt=
+ps://substack-post-media.s3.amazonaws.com/public/images/f77c79c7-9fb2-4cd0-=
+b075-a6201a212a6c_1456x816.png&quot;,&quot;srcNoWatermark&quot;:null,&quot;=
+fullscreen&quot;:null,&quot;imageSize&quot;:null,&quot;height&quot;:816,&qu=
+ot;width&quot;:1456,&quot;resizeWidth&quot;:null,&quot;bytes&quot;:2212301,=
+&quot;alt&quot;:null,&quot;title&quot;:null,&quot;type&quot;:&quot;image/pn=
+g&quot;,&quot;href&quot;:null,&quot;belowTheFold&quot;:true,&quot;topImage&=
+quot;:false,&quot;internalRedirect&quot;:&quot;https://www.oneusefulthing.o=
+rg/i/188100833?img=3Dhttps%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fp=
+ublic%2Fimages%2Ff77c79c7-9fb2-4cd0-b075-a6201a212a6c_1456x816.png&quot;,&q=
+uot;isProcessing&quot;:false,&quot;align&quot;:null,&quot;offset&quot;:fals=
+e}" alt=3D"" width=3D"550" height=3D"308.24175824175825" src=3D"https://sub=
+stackcdn.com/image/fetch/$s_!O-pO!,w_1100,c_limit,f_auto,q_auto:good,fl_pro=
+gressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%=
+2Fimages%2Ff77c79c7-9fb2-4cd0-b075-a6201a212a6c_1456x816.png" style=3D"bord=
+er: none !important;vertical-align: middle;display: block;-ms-interpolation=
+-mode: bicubic;height: auto;margin-bottom: 0;width: auto !important;max-wid=
+th: 100% !important;margin: 0 auto;"></a></td><td style=3D"text-align: cent=
+er;"></td></tr></tbody></table></figure></div><p style=3D"margin: 0 0 20px =
+0;color: rgb(54,55,55);line-height: 26px;font-size: 16px;"></p><p style=3D"=
+margin: 0 0 20px 0;color: rgb(54,55,55);line-height: 26px;font-size: 16px;m=
+argin-bottom: 0;"></p></div></div><div class=3D"container-border" style=3D"=
+margin: 32px 0 0;width: 100%;box-sizing: border-box;border-top: 1px solid #=
+e6e6e6;font-size: 16px;line-height: 26px;"></div><div class=3D"typography" =
+style=3D"--image-offset-margin: -120px;font-size: 16px;line-height: 26px;">=
+<div class=3D"postscript" style=3D"margin: 32px 0;font-size: 16px;line-heig=
+ht: 26px;"><div class=3D"body markup" dir=3D"auto" style=3D"text-align: ini=
+tial;font-size: 16px;line-height: 26px;width: 100%;word-break: break-word;m=
+argin-bottom: 16px;"><p style=3D"margin: 0 0 20px 0;color: rgb(54,55,55);li=
+ne-height: 26px;font-size: 16px;margin-top: 0;"><em>You&#8217;re currently =
+a free subscriber to One Useful Thing. Subscriptions are optional but help =
+support my work.</em></p><div class=3D"subscribe-widget is-signed-up" data-=
+component-name=3D"SubscribeWidget" style=3D"margin: 0 0 1em;direction: ltr;=
+font-size: 16px;line-height: 26px;margin-bottom: 0;"><div class=3D"pencraft=
+ pc-reset button-wrapper" style=3D"text-decoration: unset;list-style: none;=
+font-size: 16px;line-height: 26px;text-align: center;cursor: pointer;border=
+-radius: 4px;"><a class=3D"button subscribe-btn primary" href=3D"https://su=
+bstack.com/redirect/2/eyJlIjoiaHR0cHM6Ly93d3cub25ldXNlZnVsdGhpbmcub3JnL3N1Y=
+nNjcmliZT91dG1fc291cmNlPXBvc3QmdXRtX2NhbXBhaWduPWVtYWlsLWNoZWNrb3V0Jm5leHQ9=
+aHR0cHMlM0ElMkYlMkZ3d3cub25ldXNlZnVsdGhpbmcub3JnJTJGcCUyRmEtZ3VpZGUtdG8td2h=
+pY2gtYWktdG8tdXNlLWluLXRoZSZyPWY4emFpJnRva2VuPWV5SjFjMlZ5WDJsa0lqb3lOVFl4TX=
+pJeU5pd2lhV0YwSWpveE56Y3hNemM1TVRVMExDSmxlSEFpT2pFM056TTVOekV4TlRRc0ltbHpje=
+Uk2SW5CMVlpMHhNVGd3TmpRMElpd2ljM1ZpSWpvaVkyaGxZMnR2ZFhRaWZRLjBjTGlFekkxaDll=
+WUo2U0ozSDUxcnE2aDBzcUZOSnhoRFZHRmtSM1VQTU0iLCJwIjoxODgxMDA4MzMsInMiOjExODA=
+2NDQsImYiOnRydWUsInUiOjI1NjEzMjI2LCJpYXQiOjE3NzEzNzkxNTQsImV4cCI6MjA4Njk1NT=
+E1NCwiaXNzIjoicHViLTAiLCJzdWIiOiJsaW5rLXJlZGlyZWN0In0.xV_cnba9Ibn0aSoonBM-_=
+kzGL6S4JfsfjtFHGyBXrCA?&utm_medium=3Demail&utm_source=3Dsubscribe-widget&ut=
+m_content=3D188100833" style=3D"font-family: system-ui,-apple-system,BlinkM=
+acSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoj=
+i','Segoe UI Emoji','Segoe UI Symbol';display: inline-block;box-sizing: bor=
+der-box;cursor: pointer;border: none;border-radius: 8px;font-size: 14px;lin=
+e-height: 20px;font-weight: 600;text-align: center;opacity: 1;outline: none=
+;white-space: nowrap;text-decoration: none !important;background-color: #BA=
+A049;color: #ffffff !important;margin: 0 auto;padding: 12px 20px;height: au=
+to;"><span style=3D"color: #ffffff;text-decoration: none;">Upgrade to paid<=
+/span></a></div></div></div></div></div><table class=3D"email-ufi-2-bottom"=
+ role=3D"presentation" width=3D"100%" border=3D"0" cellspacing=3D"0" cellpa=
+dding=3D"0" style=3D"border-top: 1px solid rgb(0,0,0,.1);border-bottom: 1px=
+ solid rgb(0,0,0,.1);min-width: 100%;"><tbody><tr height=3D"16"><td height=
+=3D"16" style=3D"font-size:0px;line-height:0;">&nbsp;</td></tr><tr><td><tab=
+le class=3D"email-ufi-2-row" role=3D"presentation" width=3D"100%" border=3D=
+"0" cellspacing=3D"0" cellpadding=3D"0" style=3D"border-bottom: 1px solid r=
+gb(0,0,0,.1);"><tbody><tr><td width=3D"95%"><table class=3D"email-button-ou=
+tline-wrapper-full-width" role=3D"presentation" width=3D"auto" border=3D"0"=
+ cellspacing=3D"0" cellpadding=3D"0" style=3D"width: 95%;margin: 0 auto;"><=
+tbody><tr><td align=3D"center"><a class=3D"email-button-outline full-width"=
+ href=3D"https://substack.com/app-link/post?publication_id=3D1180644&post_i=
+d=3D188100833&utm_source=3Dsubstack&utm_medium=3Demail&utm_content=3Dshare&=
+utm_campaign=3Demail-share&action=3Dshare&triggerShare=3Dtrue&isFreemail=3D=
+true&r=3Df8zai&token=REDACTED" s=
+tyle=3D"font-family: system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',=
+Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Seg=
+oe UI Symbol';display: inline-block;font-weight: 500;border: 1px solid rgb(=
+0,0,0,.1);border-radius: 9999px;text-transform: uppercase;font-size: 12px;l=
+ine-height: 12px;padding: 9px 14px;text-decoration: none;color: rgb(119,119=
+,119);width: 100%;padding-left: 0;padding-right: 0;"><img class=3D"icon" sr=
+c=3D"https://substackcdn.com/image/fetch/$s_!rmYa!,w_36,c_scale,f_png,q_aut=
+o:good,fl_progressive:steep/https%3A%2F%2Fsubstack.com%2Ficon%2FLucideShare=
+%3Fv%3D4%26height%3D36%26fill%3Dnone%26stroke%3D%2523808080%26strokeWidth%3=
+D2" width=3D"18" height=3D"18" style=3D"margin-right: 8px;min-width: 18px;m=
+in-height: 18px;border: none;vertical-align: middle;max-width: 18px" alt=3D=
+""><span class=3D"email-button-text" style=3D"vertical-align: middle;">Shar=
+e</span></a></td></tr></tbody></table></td></tr><tr height=3D"16"><td heigh=
+t=3D"16" style=3D"font-size:0px;line-height:0;">&nbsp;</td></tr></tbody></t=
+able></td></tr><tr height=3D"16"><td height=3D"16" style=3D"font-size:0px;l=
+ine-height:0;">&nbsp;</td></tr><tr><td><table role=3D"presentation" width=
+=3D"100%" border=3D"0" cellspacing=3D"0" cellpadding=3D"0"><tbody><tr><td><=
+table role=3D"presentation" width=3D"auto" border=3D"0" cellspacing=3D"0" c=
+ellpadding=3D"0" style=3D"margin:0 auto;"><tbody><tr><td style=3D"vertical-=
+align:middle;"><table role=3D"presentation" width=3D"auto" border=3D"0" cel=
+lspacing=3D"0" cellpadding=3D"0"><tbody><tr><td align=3D"center"><a class=
+=3D"email-button-outline" href=3D"https://substack.com/app-link/post?public=
+ation_id=3D1180644&post_id=3D188100833&utm_source=3Dsubstack&isFreemail=3Dt=
+rue&submitLike=3Dtrue&token=REDACTED&utm_medium=3Demail&utm_campaign=3Demail-reaction&r=3Df=
+8zai" style=3D"font-family: system-ui,-apple-system,BlinkMacSystemFont,'Seg=
+oe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoj=
+i','Segoe UI Symbol';display: inline-block;font-weight: 500;border: 1px sol=
+id rgb(0,0,0,.1);border-radius: 9999px;text-transform: uppercase;font-size:=
+ 12px;line-height: 12px;padding: 9px 14px;text-decoration: none;color: rgb(=
+119,119,119);"><img class=3D"icon" src=3D"https://substackcdn.com/image/fet=
+ch/$s_!PeVs!,w_36,c_scale,f_png,q_auto:good,fl_progressive:steep/https%3A%2=
+F%2Fsubstack.com%2Ficon%2FLucideHeart%3Fv%3D4%26height%3D36%26fill%3Dnone%2=
+6stroke%3D%2523808080%26strokeWidth%3D2" width=3D"18" height=3D"18" style=
+=3D"margin-right: 8px;min-width: 18px;min-height: 18px;border: none;vertica=
+l-align: middle;max-width: 18px" alt=3D""><span class=3D"email-button-text"=
+ style=3D"vertical-align: middle;">Like</span></a></td></tr></tbody></table=
+></td><td width=3D"8" style=3D"min-width:8px;"></td><td style=3D"vertical-a=
+lign:middle;"><table role=3D"presentation" width=3D"auto" border=3D"0" cell=
+spacing=3D"0" cellpadding=3D"0"><tbody><tr><td align=3D"center"><a class=3D=
+"email-button-outline" href=3D"https://substack.com/app-link/post?publicati=
+on_id=3D1180644&post_id=3D188100833&utm_source=3Dsubstack&utm_medium=3Demai=
+l&isFreemail=3Dtrue&comments=3Dtrue&token=REDACTED&r=3Df8zai&utm_campaign=3Demail-half-magic-comments&actio=
+n=3Dpost-comment&utm_source=3Dsubstack&utm_medium=3Demail" style=3D"font-fa=
+mily: system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetic=
+a,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';d=
+isplay: inline-block;font-weight: 500;border: 1px solid rgb(0,0,0,.1);borde=
+r-radius: 9999px;text-transform: uppercase;font-size: 12px;line-height: 12p=
+x;padding: 9px 14px;text-decoration: none;color: rgb(119,119,119);"><img cl=
+ass=3D"icon" src=3D"https://substackcdn.com/image/fetch/$s_!x1tS!,w_36,c_sc=
+ale,f_png,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack.com%2Fico=
+n%2FLucideComments%3Fv%3D4%26height%3D36%26fill%3Dnone%26stroke%3D%25238080=
+80%26strokeWidth%3D2" width=3D"18" height=3D"18" style=3D"margin-right: 8px=
+;min-width: 18px;min-height: 18px;border: none;vertical-align: middle;max-w=
+idth: 18px" alt=3D""><span class=3D"email-button-text" style=3D"vertical-al=
+ign: middle;">Comment</span></a></td></tr></tbody></table></td><td width=3D=
+"8" style=3D"min-width:8px;"></td><td style=3D"vertical-align:middle;"><tab=
+le role=3D"presentation" width=3D"auto" border=3D"0" cellspacing=3D"0" cell=
+padding=3D"0"><tbody><tr><td align=3D"center"><a class=3D"email-button-outl=
+ine" href=3D"https://substack.com/redirect/2/eyJlIjoiaHR0cHM6Ly9vcGVuLnN1Yn=
+N0YWNrLmNvbS9wdWIvb25ldXNlZnVsdGhpbmcvcC9hLWd1aWRlLXRvLXdoaWNoLWFpLXRvLXVzZ=
+S1pbi10aGU_dXRtX3NvdXJjZT1zdWJzdGFjayZ1dG1fbWVkaXVtPWVtYWlsJnV0bV9jYW1wYWln=
+bj1lbWFpbC1yZXN0YWNrLWNvbW1lbnQmYWN0aW9uPXJlc3RhY2stY29tbWVudCZyPWY4emFpJnR=
+va2VuPWV5SjFjMlZ5WDJsa0lqb3lOVFl4TXpJeU5pd2ljRzl6ZEY5cFpDSTZNVGc0TVRBd09ETX=
+pMQ0pwWVhRaU9qRTNOekV6TnpreE5UUXNJbVY0Y0NJNk1UYzNNemszTVRFMU5Dd2lhWE56SWpva=
+WNIVmlMVEV4T0RBMk5EUWlMQ0p6ZFdJaU9pSndiM04wTFhKbFlXTjBhVzl1SW4wLmRsT3QyVmVB=
+dnpDMFhtZHNQY1d3MmVqMHR1WVQ5ZlV6RmdXUlRDOE9uUzAiLCJwIjoxODgxMDA4MzMsInMiOjE=
+xODA2NDQsImYiOnRydWUsInUiOjI1NjEzMjI2LCJpYXQiOjE3NzEzNzkxNTQsImV4cCI6MjA4Nj=
+k1NTE1NCwiaXNzIjoicHViLTAiLCJzdWIiOiJsaW5rLXJlZGlyZWN0In0.G-GCUJlZYw30a4R-H=
+4c2E7hGCNB_aZnrWc2Jzp2ue6Q?&utm_source=3Dsubstack&utm_medium=3Demail" style=
+=3D"font-family: system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Robo=
+to,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe U=
+I Symbol';display: inline-block;font-weight: 500;border: 1px solid rgb(0,0,=
+0,.1);border-radius: 9999px;text-transform: uppercase;font-size: 12px;line-=
+height: 12px;padding: 9px 14px;text-decoration: none;color: rgb(119,119,119=
+);"><img class=3D"icon" src=3D"https://substackcdn.com/image/fetch/$s_!5EGt=
+!,w_36,c_scale,f_png,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstac=
+k.com%2Ficon%2FNoteForwardIcon%3Fv%3D4%26height%3D36%26fill%3Dnone%26stroke=
+%3D%2523808080%26strokeWidth%3D2" width=3D"18" height=3D"18" style=3D"margi=
+n-right: 8px;min-width: 18px;min-height: 18px;border: none;vertical-align: =
+middle;max-width: 18px" alt=3D""><span class=3D"email-button-text" style=3D=
+"vertical-align: middle;">Restack</span></a></td></tr></tbody></table></td>=
+</tr></tbody></table></td><td align=3D"right"><table role=3D"presentation" =
+width=3D"auto" border=3D"0" cellspacing=3D"0" cellpadding=3D"0"><tbody><tr>=
+</tr></tbody></table></td></tr></tbody></table></td></tr><tr height=3D"16">=
+<td height=3D"16" style=3D"font-size:0px;line-height:0;">&nbsp;</td></tr></=
+tbody></table><div class=3D"footer footer-ZM59BM" style=3D"color: rgb(119,1=
+19,119);text-align: center;font-size: 16px;line-height: 26px;padding: 24px0=
+;"><div style=3D"font-size: 16px;line-height: 26px;padding-bottom: 24px"><p=
+ class=3D"pencraft pc-reset color-secondary-ls1g8s size-12-mmZ61m reset-Ixi=
+VJZ small meta-B2bqa5" style=3D"list-style: none;font-family: system-ui,-ap=
+ple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,=
+'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';padding-bottom: 0;fo=
+nt-size: 12px;line-height: 16px;margin: 0;color: rgb(119,119,119);text-deco=
+ration: unset;">&#169; 2026 <span>Ethan Mollick</span><br>548 Market Street=
+ PMB 72296, San Francisco, CA 94104 <br><a href=3D"https://substack.com/red=
+irect/2/eyJlIjoiaHR0cHM6Ly93d3cub25ldXNlZnVsdGhpbmcub3JnL2FjdGlvbi9kaXNhYmx=
+lX2VtYWlsP3Rva2VuPWV5SjFjMlZ5WDJsa0lqb3lOVFl4TXpJeU5pd2ljRzl6ZEY5cFpDSTZNVG=
+c0TVRBd09ETXpMQ0pwWVhRaU9qRTNOekV6TnpreE5UUXNJbVY0Y0NJNk1UZ3dNamt4TlRFMU5Dd=
+2lhWE56SWpvaWNIVmlMVEV4T0RBMk5EUWlMQ0p6ZFdJaU9pSmthWE5oWW14bFgyVnRZV2xzSW4w=
+LlJSZTU4NWVqQTJwMG5oZVBUM25uWmRzVFZFVjZlUHVuTUs1RnJMbkE0Nm8iLCJwIjoxODgxMDA=
+4MzMsInMiOjExODA2NDQsImYiOnRydWUsInUiOjI1NjEzMjI2LCJpYXQiOjE3NzEzNzkxNTQsIm=
+V4cCI6MjA4Njk1NTE1NCwiaXNzIjoicHViLTAiLCJzdWIiOiJsaW5rLXJlZGlyZWN0In0.Aj_Mz=
+Y100y-eVoOdZ3T8IBNjnlU-oghaeTdgIt2I73M?" style=3D"text-decoration: underlin=
+e;color: rgb(119,119,119);"><span style=3D"color: rgb(119,119,119);text-dec=
+oration: underline;">Unsubscribe</span></a></p></div><p class=3D"footerSect=
+ion-EHR0jG small powered-by-substack" style=3D"padding: 0 24px;font-size: 1=
+2px;line-height: 20px;margin: 0;color: rgb(119,119,119);font-family: system=
+-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans=
+-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';padding-botto=
+m: 0;margin-top: 0;"><a href=3D"https://substack.com/redirect/2/eyJlIjoiaHR=
+0cHM6Ly9zdWJzdGFjay5jb20vc2lnbnVwP3V0bV9zb3VyY2U9c3Vic3RhY2smdXRtX21lZGl1bT=
+1lbWFpbCZ1dG1fY29udGVudD1mb290ZXImdXRtX2NhbXBhaWduPWF1dG9maWxsZWQtZm9vdGVyJ=
+mZyZWVTaWdudXBFbWFpbD1tb3JpdHouYm9vc0BnbWFpbC5jb20mcj1mOHphaSIsInAiOjE4ODEw=
+MDgzMywicyI6MTE4MDY0NCwiZiI6dHJ1ZSwidSI6MjU2MTMyMjYsImlhdCI6MTc3MTM3OTE1NCw=
+iZXhwIjoyMDg2OTU1MTU0LCJpc3MiOiJwdWItMCIsInN1YiI6ImxpbmstcmVkaXJlY3QifQ.kTG=
+YVbLQ8vHE4XUTnhkuUGV2oKpkFCus1fE0SObhOMU?" style=3D"color: rgb(119,119,119)=
+;text-decoration: none;display: inline-block;margin: 0 4px;"><img src=3D"ht=
+tps://substackcdn.com/image/fetch/$s_!LkrL!,w_270,c_limit,f_auto,q_auto:goo=
+d,fl_progressive:steep/https%3A%2F%2Fsubstack.com%2Fimg%2Femail%2Fpublish-b=
+utton%402x.png" srcset=3D"https://substackcdn.com/image/fetch/$s_!wgfj!,w_1=
+35,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack.c=
+om%2Fimg%2Femail%2Fpublish-button.png, https://substackcdn.com/image/fetch/=
+$s_!LkrL!,w_270,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F=
+%2Fsubstack.com%2Fimg%2Femail%2Fpublish-button%402x.png 2x, https://substac=
+kcdn.com/image/fetch/$s_!KjtY!,w_405,c_limit,f_auto,q_auto:good,fl_progress=
+ive:steep/https%3A%2F%2Fsubstack.com%2Fimg%2Femail%2Fpublish-button%403x.pn=
+g 3x" width=3D"135" alt=3D"Start writing" height=3D"40" style=3D"max-width:=
+ 550px;border: none !important;vertical-align: middle;"></a></p></div></div=
+></td><td></td></tr></tbody></table><img src=3D"https://eotrx.substackcdn.c=
+om/open?token=REDACTED" alt=3D""=
+ width=3D"1" height=3D"1" border=3D"0" style=3D"height:1px !important;width=
+:1px !important;border-width:0 !important;margin-top:0 !important;margin-bo=
+ttom:0 !important;margin-right:0 !important;margin-left:0 !important;paddin=
+g-top:0 !important;padding-bottom:0 !important;padding-right:0 !important;p=
+adding-left:0 !important;"/><img width=3D"1" height=3D"1" alt=3D"" src=3D"h=
+ttps://email.mg-d0.substack.com/o/eJxM0Euu4yAQheHVhFlblME2DFiLxaNwUBuIoEjLv=
+fqrPAZ3ekr69am8JTxqu8yjdmLBrMLGJTA0sG0gNg2LZJhtOvcDCzZLGHZLv65SaXY3K4-4gdZO=
+u1UF0DF6LWETVihAHTaWzMznlc-gOMhFwiQmpX3cglYISimw4SZ5Pv4EPvXhOln_d_I1s9T32PB=
+NMNQGshd0tyMkLB4NPrFdtXznFAwoBZwrIT4LXQ80Bf_1E4mwscdwu685j5Lo2rFYd2L4hoc7k7=
+eUanmHQPFVStZMri3R_8nV2m-SHy_Km9aHCzXbVEwtODrGcdI9lYPR55ujY3uV5mUFMc8re5r5J=
+wAA__9iDXpQ"></body></html>
+--590486959885784771fdf7df9fcd18015c6b194f67c00b9d7bc80e33ff77--

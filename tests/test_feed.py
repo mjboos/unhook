@@ -280,3 +280,99 @@ def test_consolidate_threads_collects_images():
         "https://example.com/1.jpg",
         "https://example.com/2.jpg",
     }
+
+
+def test_extract_reply_parent_uri_nested_ref():
+    """It extracts parent URI from nested ref structure."""
+    from unhook.feed import _extract_reply_parent_uri
+
+    # When parent has no direct URI but has a ref with URI
+    record = {"reply": {"parent": {"ref": {"uri": "at://ref-uri"}}}}
+    assert _extract_reply_parent_uri(record) == "at://ref-uri"
+
+
+def test_extract_reply_parent_uri_no_reply():
+    """It returns None when record has no reply field."""
+    from unhook.feed import _extract_reply_parent_uri
+
+    assert _extract_reply_parent_uri({"text": "hello"}) is None
+    assert _extract_reply_parent_uri("not a dict") is None
+
+
+def test_find_self_threads_posts_without_uri():
+    """It ignores posts that have no URI."""
+    post_no_uri = {"post": {"author": {"did": "did:1"}, "record": {"text": "hi"}}}
+    normal = make_post("at://normal", "did:1", "Normal post")
+    threads = find_self_threads([post_no_uri, normal])
+    assert threads == []
+
+
+def test_fetch_feed_posts_invalid_feed(mock_env_vars):
+    """It raises ValueError for invalid feed parameter."""
+    with pytest.raises(ValueError, match='feed must be "author" or "timeline"'):
+        fetch_feed_posts(feed="invalid")
+
+
+def test_fetch_feed_posts_empty_response(mock_env_vars):
+    """It returns empty list when API returns no feed items."""
+    empty_response = MagicMock(feed=[], cursor=None)
+
+    with patch("unhook.feed.Client") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_timeline.return_value = empty_response
+
+        result = fetch_feed_posts(limit=100)
+
+        assert result == []
+
+
+def test_fetch_feed_posts_stops_when_all_posts_old(mock_env_vars):
+    """It stops pagination when entire page is older than cutoff."""
+    now = datetime.now(UTC)
+
+    old_response = MagicMock(
+        feed=[
+            make_post_mock(
+                1,
+                "Very old post",
+                (now - timedelta(days=30)).isoformat().replace("+00:00", "Z"),
+            ),
+        ],
+        cursor="more_pages",
+    )
+
+    with patch("unhook.feed.Client") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_timeline.return_value = old_response
+
+        result = fetch_feed_posts(limit=100, since_days=7)
+
+        assert result == []
+        # Should not follow cursor when all posts are old
+        assert mock_client.get_timeline.call_count == 1
+
+
+def test_fetch_feed_posts_respects_limit_mid_page(mock_env_vars):
+    """It stops collecting when limit is reached mid-page."""
+    now = datetime.now(UTC)
+    ts = (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+
+    response = MagicMock(
+        feed=[
+            make_post_mock(1, "Post 1", ts),
+            make_post_mock(2, "Post 2", ts),
+            make_post_mock(3, "Post 3", ts),
+        ],
+        cursor="more",
+    )
+
+    with patch("unhook.feed.Client") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_timeline.return_value = response
+
+        result = fetch_feed_posts(limit=2, since_days=7)
+
+        assert len(result) == 2

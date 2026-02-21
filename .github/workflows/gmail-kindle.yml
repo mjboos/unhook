@@ -1,16 +1,18 @@
 name: Gmail to Kindle
 
 on:
+  schedule:
+    - cron: "0 18 * * 1,4" # Monday & Thursday at 18:00 UTC (evening CET)
   workflow_dispatch:
     inputs:
       since_days:
         description: "Days of history to include"
         required: false
-        default: "1"
+        default: "4"
       label:
         description: "Gmail label to fetch"
         required: false
-        default: "newsletters-kindle"
+        default: "newsletters"
 
 jobs:
   fetch-and-send:
@@ -18,6 +20,8 @@ jobs:
     env:
       SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
       GAPPPWD: ${{ secrets.GAPPPWD }}
+      SINCE_DAYS: ${{ inputs.since_days || '4' }}
+      LABEL: ${{ inputs.label || 'newsletters' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,8 +38,8 @@ jobs:
         id: export
         run: |
           uv run python -m unhook.cmd gmail-to-kindle \
-            --since-days "${{ github.event.inputs.since_days }}" \
-            --label "${{ github.event.inputs.label }}" \
+            --since-days "$SINCE_DAYS" \
+            --label "$LABEL" \
             --output-dir "exports" \
             --file-prefix "newsletters"
 

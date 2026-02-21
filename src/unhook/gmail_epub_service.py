@@ -28,6 +28,10 @@ MAX_IMAGE_DIMENSION = 1200
 JPEG_QUALITY = 65
 
 # HTML tags allowed in email content for EPUB
+# NOTE: table/tbody/thead/tr/td/th are intentionally excluded.
+# Newsletter emails use deeply nested table layouts for positioning which
+# Kindle cannot reflow, causing it to fall back to fixed-layout (image)
+# rendering.  With strip=True bleach removes the tags but keeps text content.
 ALLOWED_TAGS = [
     "a",
     "abbr",
@@ -51,27 +55,19 @@ ALLOWED_TAGS = [
     "ol",
     "p",
     "pre",
-    "span",
     "strong",
-    "table",
-    "tbody",
-    "td",
-    "th",
-    "thead",
-    "tr",
     "u",
     "ul",
 ]
 
 ALLOWED_ATTRIBUTES = {
     "a": ["href", "title"],
-    "img": ["src", "alt", "width", "height"],
-    "td": ["colspan", "rowspan"],
-    "th": ["colspan", "rowspan"],
-    "span": ["style"],
-    "div": ["style"],
-    "p": ["style"],
+    "img": ["src", "alt"],
 }
+
+# Pixel threshold: images with *all* stated dimensions at or below this value
+# are stripped (tracking pixels, social-action icons, tiny spacer GIFs, …).
+_SMALL_IMAGE_PX = 50
 
 
 def _strip_non_body_content(html: str) -> str:
@@ -94,9 +90,86 @@ def _strip_non_body_content(html: str) -> str:
     return html
 
 
+def _strip_small_images(html: str, max_size: int = _SMALL_IMAGE_PX) -> str:
+    """Remove ``<img>`` tags whose explicit dimensions are tiny.
+
+    Targets tracking pixels (1x1), social-action icons (18x18 / 36x36),
+    and similar decorative images that add no value in an EPUB.
+    Images without explicit width/height attributes are kept.
+    """
+
+    def _replace(match: re.Match) -> str:
+        tag = match.group(0)
+        w_match = re.search(r'width=["\']?(\d+)', tag)
+        h_match = re.search(r'height=["\']?(\d+)', tag)
+        if not w_match and not h_match:
+            return tag  # no dimensions → keep
+        w = int(w_match.group(1)) if w_match else 0
+        h = int(h_match.group(1)) if h_match else 0
+        if max(w, h) <= max_size:
+            return ""
+        return tag
+
+    return re.sub(r"<img\b[^>]*/?>", _replace, html, flags=re.IGNORECASE)
+
+
+_BOILERPLATE_LINK_TEXTS = [
+    "read in app",
+    "upgrade to paid",
+    "start writing",
+    "unsubscribe",
+]
+
+
+def _strip_email_boilerplate(html: str) -> str:
+    """Remove common newsletter boilerplate that is not article content.
+
+    Targets Substack-style chrome (action buttons, subscribe prompts, footers)
+    but is broad enough to catch similar patterns from other providers.
+    """
+    # Zero-width / soft-hyphen spacer divs used as preheader padding
+    html = re.sub(
+        r"<div>[\u200b-\u200f\u00ad\ufeff\s\u034f]+</div>",
+        "",
+        html,
+    )
+    # "Forwarded this email? Subscribe here for more"
+    # The span limit is generous because Substack embeds very long redirect URLs.
+    html = re.sub(
+        r"Forwarded this email\?.{0,3000}?for more",
+        "",
+        html,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+    # Remove individual <a>…</a> tags whose text contains boilerplate.
+    # The inner pattern (?:(?!</a>).)* matches one <a> without crossing its
+    # closing tag, avoiding the greedy-match-across-document pitfall.
+    def _check_link(match: re.Match) -> str:
+        content_lower = match.group(0).lower()
+        for text in _BOILERPLATE_LINK_TEXTS:
+            if text in content_lower:
+                return ""
+        return match.group(0)
+
+    html = re.sub(
+        r"<a\b[^>]*>(?:(?!</a>).)*?</a>",
+        _check_link,
+        html,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+    # Remove empty <a> tags left after image/icon stripping
+    html = re.sub(r"<a\b[^>]*>\s*</a>", "", html, flags=re.IGNORECASE)
+
+    return html
+
+
 def _sanitize_email_html(html: str) -> str:
     """Sanitize HTML content for EPUB embedding."""
     html = _strip_non_body_content(html)
+    html = _strip_small_images(html)
+    html = _strip_email_boilerplate(html)
     return bleach.clean(
         html,
         tags=ALLOWED_TAGS,
@@ -276,15 +349,9 @@ class EmailEpubBuilder:
                 file_name=chapter_filename,
                 lang=self.language,
             )
-            chapter.content = f"""
-            <html>
-            <head><title>{bleach.clean(chapter_title)}</title></head>
-            <body>
-            <h1>{bleach.clean(chapter_title)}</h1>
-            {sanitized_html}
-            </body>
-            </html>
-            """
+            chapter.content = (
+                f"<h1>{bleach.clean(chapter_title)}</h1>\n{sanitized_html}"
+            )
 
             book.add_item(chapter)
             chapters.append(chapter)

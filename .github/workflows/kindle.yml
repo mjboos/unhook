@@ -2,7 +2,7 @@ name: Send EPUB to Kindle
 
 on:
   schedule:
-    - cron: "0 18 * * 6"  # Saturday at 18:00 UTC (evening CET)
+    - cron: "0 18 * * 1,4"  # Monday & Thursday at 18:00 UTC (evening CET)
   workflow_dispatch:
     inputs:
       limit:

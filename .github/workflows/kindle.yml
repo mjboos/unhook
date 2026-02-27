@@ -60,12 +60,3 @@ jobs:
           from: "Github actions <${{ secrets.SMTP_USERNAME }}>"
           body: "Automated EPUB export from integration run."
           attachments: "exports/*.epub"
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: kindle-artifacts
-          path: |
-            kindle_feed.parquet
-            exports/*.epub
-          if-no-files-found: error

@@ -65,14 +65,6 @@ jobs:
           body: "Automated newsletter EPUB export."
           attachments: "exports/*.epub"
 
-      - name: Upload artifacts
-        if: steps.export.outputs.epub_created == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: gmail-kindle-artifacts
-          path: exports/*.epub
-          if-no-files-found: warn
-
       - name: Log no emails found
         if: steps.export.outputs.epub_created == 'false'
         run: echo "No emails found matching criteria. Skipping send."

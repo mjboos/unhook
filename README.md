@@ -9,7 +9,7 @@ Unhook helps you reclaim your attention from social media and newsletters by per
 1. **Feed fetching** — Fetch your Bluesky timeline (or author feed) and save posts to parquet files. Self-threads by the same author are detected and consolidated automatically.
 2. **EPUB creation** — Convert fetched posts into an EPUB file, with images compressed and embedded. Posts are filtered by minimum length and sorted by date. Reposts are included separately with a higher length threshold. Quoted posts are inlined.
 3. **Newsletter digests** — Fetch emails from a Gmail label via IMAP and export them as an EPUB, with inline and external images embedded. Newsletter boilerplate and tracking pixels are stripped.
-4. **Kindle delivery** — Scheduled GitHub Actions workflows email the EPUBs to your Kindle address weekly (Bluesky) or twice weekly (newsletters).
+4. **Kindle delivery** — Scheduled GitHub Actions workflows email EPUB digests to your Kindle address.
 
 ## Installation
 
@@ -75,16 +75,32 @@ $ uv run unhook gmail-to-kindle --since-days 4         # emails from last 4 days
 $ uv run unhook gmail-to-kindle --output-dir ./out     # custom output directory
 ```
 
-## Automated Kindle delivery
+## Using GitHub Actions in your fork
 
-The repository includes GitHub Actions workflows that run on a schedule:
+After forking this repo, workflows run in your fork context, so you must configure your own secrets.
 
-- **Bluesky → Kindle** (`kindle.yml`): Runs weekly (Saturday 18:00 UTC). Fetches up to 1000 posts from the last 7 days, builds an EPUB, and emails it to your Kindle.
-- **Gmail → Kindle** (`gmail-kindle.yml`): Runs Monday and Thursday (18:00 UTC). Fetches newsletter emails from a Gmail label, builds an EPUB, and emails it to your Kindle.
+### 1) Enable workflows in your fork
 
-Both workflows can also be triggered manually via `workflow_dispatch`.
+In your fork, open **Actions** and enable workflows if GitHub prompts you.
 
-Required GitHub secrets: `BLUESKY_HANDLE`, `BLUESKY_APP_PASSWORD`, `SMTP_USERNAME`, `GAPPPWD`, `AMAZON_KINDLE_ADDRESS`.
+### 2) Add repository secrets
+
+Go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+
+- `SMTP_USERNAME`: Gmail address used to send mail (for example `you@gmail.com`)
+- `GAPPPWD`: Gmail app password for that sender account
+- `AMAZON_KINDLE_ADDRESS`: Your Kindle send-to-Kindle email address
+- `BLUESKY_HANDLE`: Your Bluesky handle (only needed for Bluesky workflows)
+- `BLUESKY_APP_PASSWORD`: Bluesky app password (only needed for Bluesky workflows)
+
+### 3) What each workflow does
+
+- **`test.yml`** (push/PR to `main`): Runs tests and pre-commit checks on CI. No secrets required.
+- **`integration.yml`** (manual only): Fetches Bluesky posts and exports an EPUB for smoke testing. Requires `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD`.
+- **`kindle.yml`** (scheduled + manual): On Monday and Thursday at 18:00 UTC, fetches Bluesky posts, builds an EPUB, and emails it to your Kindle. Requires all Bluesky + Gmail/Kindle secrets.
+- **`gmail-kindle.yml`** (scheduled + manual): On Monday and Thursday at 18:00 UTC, fetches Gmail newsletters by label, builds an EPUB, and emails it to your Kindle. Requires `SMTP_USERNAME`, `GAPPPWD`, `AMAZON_KINDLE_ADDRESS`.
+
+Both `kindle.yml` and `gmail-kindle.yml` also support manual runs via **Run workflow** with custom inputs (for example `since_days`, `limit`, or `label`).
 
 ## Development
 

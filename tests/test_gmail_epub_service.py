@@ -391,6 +391,31 @@ class TestEmailEpubBuilder:
         combined = "\n".join(docs)
         assert "https://example.com/img.jpg" not in combined
 
+    def test_strips_remote_image_with_gt_in_alt(self, tmp_path):
+        """It strips remote images even when alt contains literal > chars."""
+        email = EmailContent(
+            title="Email with > in alt",
+            html_body=(
+                "<p>Text</p>"
+                '<img alt="if (count) > 0 then play"'
+                ' src="https://example.com/unresolved.jpg">'
+            ),
+            published=datetime.now(UTC),
+            external_image_urls=["https://example.com/unresolved.jpg"],
+        )
+        output_path = tmp_path / "test.epub"
+
+        builder = EmailEpubBuilder()
+        result = builder.build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        docs = [
+            item.get_content().decode()
+            for item in book.get_items_of_type(ITEM_DOCUMENT)
+        ]
+        combined = "\n".join(docs)
+        assert "https://example.com/unresolved.jpg" not in combined
+
     def test_sanitizes_html_content(self, tmp_path):
         """It sanitizes HTML by removing script tags and content."""
         email = EmailContent(

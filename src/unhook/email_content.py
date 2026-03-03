@@ -19,10 +19,15 @@ _IMG_SRC_PATTERN = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE
 # Regex to find cid: references in HTML (inline images)
 _CID_PATTERN = re.compile(r'src=["\']cid:([^"\']+)["\']', re.IGNORECASE)
 
-# Regex to find unresolved remote <img> tags.
-# Any embedded image in the final EPUB must be local (images/...).
-_REMOTE_IMG_TAG_PATTERN = re.compile(
-    r"<img\b[^>]*\bsrc\s*=\s*(?:[\"']https?://[^\"']+[\"']|https?://[^\s>]+)[^>]*>",
+# Regex to match <img> tags, correctly handling ">" inside quoted attributes.
+# It alternates between unquoted text (no >, ", ') and quoted strings.
+_IMG_TAG_PATTERN = re.compile(
+    r"<img\b(?:[^>\"']*(?:\"[^\"]*\"|'[^']*'))*[^>\"']*/?>",
+    re.IGNORECASE,
+)
+
+_REMOTE_SRC_PATTERN = re.compile(
+    r"""\bsrc\s*=\s*(?:["']https?://|https?://)""",
     re.IGNORECASE,
 )
 
@@ -142,7 +147,14 @@ def strip_remote_image_tags(html: str) -> str:
     fail and replacement did not occur. Kindle ingestion can reject EPUBs that
     embed remote image sources in content documents.
     """
-    return _REMOTE_IMG_TAG_PATTERN.sub("", html)
+
+    def _remove_if_remote(match: re.Match) -> str:
+        tag = match.group(0)
+        if _REMOTE_SRC_PATTERN.search(tag):
+            return ""
+        return tag
+
+    return _IMG_TAG_PATTERN.sub(_remove_if_remote, html)
 
 
 __all__ = [

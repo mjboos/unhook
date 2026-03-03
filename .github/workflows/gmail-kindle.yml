@@ -57,12 +57,32 @@ jobs:
           echo "Validating $epub_path"
           tmpdir="$(mktemp -d)"
           unzip -q "$epub_path" -d "$tmpdir"
-          if rg -n 'src="https?://' "$tmpdir/EPUB"/*.xhtml; then
-            echo "Offending lines above (remote embedded images in EPUB XHTML)."
-            echo "Found remote embedded image src in EPUB XHTML. Failing run."
-            exit 1
-          fi
-          echo "No remote embedded image sources found."
+          python - <<'PY' "$tmpdir/EPUB"
+          import pathlib
+          import re
+          import sys
+
+          epub_dir = pathlib.Path(sys.argv[1])
+          pattern = re.compile(
+              r"<img\b[^>]*\bsrc\s*=\s*(?:[\"']https?://[^\"']+[\"']|https?://[^\s>]+)",
+              re.IGNORECASE,
+          )
+          violations = []
+
+          for xhtml_path in sorted(epub_dir.glob("*.xhtml")):
+              text = xhtml_path.read_text(encoding="utf-8", errors="ignore")
+              for lineno, line in enumerate(text.splitlines(), start=1):
+                  if pattern.search(line):
+                      violations.append((xhtml_path.name, lineno, line.strip()))
+
+          if violations:
+              print("Found remote embedded image src in EPUB XHTML:")
+              for file_name, lineno, line in violations:
+                  print(f"{file_name}:{lineno}: {line}")
+              raise SystemExit(1)
+
+          print("No remote embedded image sources found.")
+          PY
 
       - name: Send EPUB via email
         if: steps.export.outputs.epub_created == 'true'

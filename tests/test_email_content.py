@@ -9,6 +9,7 @@ from unhook.email_content import (
     parse_raw_email,
     replace_cid_references,
     replace_external_image_urls,
+    strip_remote_image_tags,
 )
 from unhook.gmail_service import RawEmail
 
@@ -247,3 +248,34 @@ class TestReplaceExternalImageUrls:
         html = '<img src="https://example.com/img.jpg">'
         result = replace_external_image_urls(html, {})
         assert result == html
+
+
+class TestStripRemoteImageTags:
+    """Tests for strip_remote_image_tags function."""
+
+    def test_strips_remote_http_and_https_images(self):
+        """It strips unresolved remote image tags."""
+        html = (
+            '<p>Start</p><img src="https://example.com/a.jpg" alt="a">'
+            '<img src="http://example.com/b.png"><p>End</p>'
+        )
+        result = strip_remote_image_tags(html)
+        assert "https://example.com/a.jpg" not in result
+        assert "http://example.com/b.png" not in result
+        assert "<p>Start</p>" in result
+        assert "<p>End</p>" in result
+
+    def test_keeps_local_and_cid_images(self):
+        """It keeps non-remote image references."""
+        html = (
+            '<img src="images/ext_1.jpg"><img src="cid:image001">'
+            '<img src="data:image/png;base64,abc">'
+        )
+        result = strip_remote_image_tags(html)
+        assert 'src="images/ext_1.jpg"' in result
+        assert 'src="cid:image001"' in result
+        assert 'src="data:image/png;base64,abc"' in result
+
+    def test_handles_empty_html(self):
+        """It handles empty HTML."""
+        assert strip_remote_image_tags("") == ""

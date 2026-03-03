@@ -265,6 +265,18 @@ class TestStripRemoteImageTags:
         assert "<p>Start</p>" in result
         assert "<p>End</p>" in result
 
+    def test_strips_remote_images_with_src_spacing_and_case_variants(self):
+        """It strips remote images with valid spacing/case variants."""
+        html = (
+            '<img src = "https://example.com/a.jpg">'
+            "<img SRC = 'https://example.com/b.jpg'>"
+            "<img src=https://example.com/c.jpg>"
+        )
+        result = strip_remote_image_tags(html)
+        assert "https://example.com/a.jpg" not in result
+        assert "https://example.com/b.jpg" not in result
+        assert "https://example.com/c.jpg" not in result
+
     def test_keeps_local_and_cid_images(self):
         """It keeps non-remote image references."""
         html = (

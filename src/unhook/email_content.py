@@ -22,7 +22,7 @@ _CID_PATTERN = re.compile(r'src=["\']cid:([^"\']+)["\']', re.IGNORECASE)
 # Regex to find unresolved remote <img> tags.
 # Any embedded image in the final EPUB must be local (images/...).
 _REMOTE_IMG_TAG_PATTERN = re.compile(
-    r"<img\b[^>]*\bsrc=[\"']https?://[^\"']+[\"'][^>]*>",
+    r"<img\b[^>]*\bsrc\s*=\s*(?:[\"']https?://[^\"']+[\"']|https?://[^\s>]+)[^>]*>",
     re.IGNORECASE,
 )
 

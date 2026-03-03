@@ -370,6 +370,27 @@ class TestEmailEpubBuilder:
         image_items = [i for i in items if i.media_type and "image" in i.media_type]
         assert len(image_items) >= 1
 
+    def test_strips_unresolved_remote_external_images(self, tmp_path):
+        """It removes remote <img> tags when downloads are unavailable."""
+        email = EmailContent(
+            title="Email with Missing External Image",
+            html_body='<p>Text</p><img src="https://example.com/img.jpg">',
+            published=datetime.now(UTC),
+            external_image_urls=["https://example.com/img.jpg"],
+        )
+        output_path = tmp_path / "test.epub"
+
+        builder = EmailEpubBuilder()
+        result = builder.build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        docs = [
+            item.get_content().decode()
+            for item in book.get_items_of_type(ITEM_DOCUMENT)
+        ]
+        combined = "\n".join(docs)
+        assert "https://example.com/img.jpg" not in combined
+
     def test_sanitizes_html_content(self, tmp_path):
         """It sanitizes HTML by removing script tags and content."""
         email = EmailContent(

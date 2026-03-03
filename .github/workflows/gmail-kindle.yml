@@ -50,6 +50,20 @@ jobs:
             echo "epub_created=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Validate EPUB has no remote embedded images
+        if: steps.export.outputs.epub_created == 'true'
+        run: |
+          epub_path="$(ls -t exports/*.epub | head -n 1)"
+          echo "Validating $epub_path"
+          tmpdir="$(mktemp -d)"
+          unzip -q "$epub_path" -d "$tmpdir"
+          if rg -n 'src="https?://' "$tmpdir/EPUB"/*.xhtml; then
+            echo "Offending lines above (remote embedded images in EPUB XHTML)."
+            echo "Found remote embedded image src in EPUB XHTML. Failing run."
+            exit 1
+          fi
+          echo "No remote embedded image sources found."
+
       - name: Send EPUB via email
         if: steps.export.outputs.epub_created == 'true'
         uses: dawidd6/action-send-mail@v5

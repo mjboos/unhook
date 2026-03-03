@@ -19,6 +19,7 @@ from unhook.email_content import (
     parse_raw_email,
     replace_cid_references,
     replace_external_image_urls,
+    strip_remote_image_tags,
 )
 from unhook.gmail_service import GmailConfig, GmailService
 
@@ -339,6 +340,7 @@ class EmailEpubBuilder:
             # Replace image references in HTML
             html_body = replace_cid_references(html_body, cid_to_filename)
             html_body = replace_external_image_urls(html_body, url_to_filename)
+            html_body = strip_remote_image_tags(html_body)
 
             # Sanitize HTML
             sanitized_html = _sanitize_email_html(html_body)

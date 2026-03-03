@@ -19,6 +19,13 @@ _IMG_SRC_PATTERN = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE
 # Regex to find cid: references in HTML (inline images)
 _CID_PATTERN = re.compile(r'src=["\']cid:([^"\']+)["\']', re.IGNORECASE)
 
+# Regex to find unresolved remote <img> tags.
+# Any embedded image in the final EPUB must be local (images/...).
+_REMOTE_IMG_TAG_PATTERN = re.compile(
+    r"<img\b[^>]*\bsrc=[\"']https?://[^\"']+[\"'][^>]*>",
+    re.IGNORECASE,
+)
+
 
 @dataclass
 class EmailContent:
@@ -128,9 +135,20 @@ def replace_external_image_urls(html: str, url_to_filename: dict[str, str]) -> s
     return html
 
 
+def strip_remote_image_tags(html: str) -> str:
+    """Remove unresolved remote image tags from HTML.
+
+    This acts as a final safety net for cases where external image downloads
+    fail and replacement did not occur. Kindle ingestion can reject EPUBs that
+    embed remote image sources in content documents.
+    """
+    return _REMOTE_IMG_TAG_PATTERN.sub("", html)
+
+
 __all__ = [
     "EmailContent",
     "parse_raw_email",
     "replace_cid_references",
     "replace_external_image_urls",
+    "strip_remote_image_tags",
 ]

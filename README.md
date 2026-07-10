@@ -13,7 +13,7 @@ Unhook helps you reclaim your attention from social media and newsletters by per
 
 ## Installation
 
-Install dependencies using [uv](https://docs.astral.sh/uv/):
+Requires Python 3.12 or newer. Install dependencies using [uv](https://docs.astral.sh/uv/):
 
 ```console
 $ pipx install uv

@@ -28,6 +28,10 @@ logger = logging.getLogger(__name__)
 MAX_IMAGE_DIMENSION = 1200
 JPEG_QUALITY = 65
 
+# Cap for table-of-contents labels only.  The chapter heading itself is not
+# truncated: it is an ordinary <h1> that reflows on the e-reader.
+MAX_TOC_LABEL_LENGTH = 80
+
 # HTML tags allowed in email content for EPUB
 # NOTE: table/tbody/thead/tr/td/th are intentionally excluded.
 # Newsletter emails use deeply nested table layouts for positioning which
@@ -263,6 +267,26 @@ def _generate_image_filename(prefix: str, index: int, media_type: str) -> str:
     return f"images/{prefix}_{index}{extension}"
 
 
+def _truncate_toc_label(title: str, max_length: int = MAX_TOC_LABEL_LENGTH) -> str:
+    """Shorten a title for use as a table-of-contents label.
+
+    Truncates on a word boundary and appends an ellipsis so the label is
+    visibly abbreviated rather than silently cut mid-word.  Titles that fit
+    are returned unchanged.
+    """
+    if len(title) <= max_length:
+        return title
+
+    # Reserve one character for the ellipsis.
+    clipped = title[: max_length - 1].rstrip()
+    head, separator, _ = clipped.rpartition(" ")
+    # Fall back to the hard cut when the first word alone exceeds the limit.
+    if separator:
+        clipped = head.rstrip()
+
+    return f"{clipped}…"
+
+
 class EmailEpubBuilder:
     """Build EPUB files from email content."""
 
@@ -295,7 +319,8 @@ class EmailEpubBuilder:
         image_counter = 0
 
         for idx, email_content in enumerate(emails, start=1):
-            chapter_title = email_content.title[:80]
+            chapter_title = email_content.title
+            toc_label = _truncate_toc_label(chapter_title)
             chapter_filename = f"email_{idx}.xhtml"
 
             # Process images for this email
@@ -347,7 +372,7 @@ class EmailEpubBuilder:
 
             # Create chapter
             chapter = epub.EpubHtml(
-                title=chapter_title,
+                title=toc_label,
                 file_name=chapter_filename,
                 lang=self.language,
             )

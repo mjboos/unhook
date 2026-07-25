@@ -10,11 +10,13 @@ from PIL import Image
 
 from unhook.email_content import EmailContent
 from unhook.gmail_epub_service import (
+    MAX_TOC_LABEL_LENGTH,
     EmailEpubBuilder,
     _compress_image,
     _sanitize_email_html,
     _strip_email_boilerplate,
     _strip_small_images,
+    _truncate_toc_label,
     download_external_images,
     export_gmail_to_epub,
 )
@@ -287,8 +289,101 @@ async def test_download_external_images_empty_list():
     assert result == {}
 
 
+class TestTruncateTocLabel:
+    """Tests for _truncate_toc_label function."""
+
+    def test_returns_short_title_unchanged(self):
+        """It leaves titles within the limit untouched."""
+        title = "A Short Newsletter Subject"
+        assert _truncate_toc_label(title) == title
+
+    def test_returns_exact_length_title_unchanged(self):
+        """It does not truncate a title sitting exactly on the limit."""
+        title = "x" * MAX_TOC_LABEL_LENGTH
+        assert _truncate_toc_label(title) == title
+
+    def test_truncates_long_title_on_word_boundary(self):
+        """It cuts at a word boundary rather than mid-word."""
+        title = (
+            "Why the Fed Just Blinked: Inside the Quiet Policy Shift "
+            "That Could Reshape Markets in 2026"
+        )
+        result = _truncate_toc_label(title)
+
+        assert result.endswith("…")
+        assert len(result) <= MAX_TOC_LABEL_LENGTH
+        # The final word is dropped whole, never sliced part-way through.
+        expected = (
+            "Why the Fed Just Blinked: Inside the Quiet Policy Shift "
+            "That Could Reshape…"
+        )
+        assert result == expected
+
+    def test_hard_cuts_when_first_word_exceeds_limit(self):
+        """It falls back to a hard cut for a single overlong word."""
+        title = "x" * 200
+        result = _truncate_toc_label(title)
+
+        assert result == "x" * (MAX_TOC_LABEL_LENGTH - 1) + "…"
+        assert len(result) == MAX_TOC_LABEL_LENGTH
+
+    def test_respects_custom_max_length(self):
+        """It honours an explicit max_length."""
+        result = _truncate_toc_label("one two three four", max_length=10)
+
+        assert result == "one two…"
+
+
 class TestEmailEpubBuilder:
     """Tests for EmailEpubBuilder class."""
+
+    def test_preserves_full_title_in_chapter_heading(self, tmp_path):
+        """It renders the complete subject in the chapter <h1>."""
+        title = (
+            "Why the Fed Just Blinked: Inside the Quiet Policy Shift "
+            "That Could Reshape Markets in 2026"
+        )
+        assert len(title) > MAX_TOC_LABEL_LENGTH
+        email = EmailContent(
+            title=title,
+            html_body="<p>Body</p>",
+            published=datetime.now(UTC),
+        )
+        output_path = tmp_path / "test.epub"
+
+        builder = EmailEpubBuilder()
+        result = builder.build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        chapter = book.get_item_with_href("email_1.xhtml")
+        content = chapter.get_content().decode()
+
+        assert f"<h1>{title}</h1>" in content
+
+    def test_truncates_toc_label_for_long_title(self, tmp_path):
+        """It shortens the navigation label while keeping the heading full."""
+        title = (
+            "Why the Fed Just Blinked: Inside the Quiet Policy Shift "
+            "That Could Reshape Markets in 2026"
+        )
+        email = EmailContent(
+            title=title,
+            html_body="<p>Body</p>",
+            published=datetime.now(UTC),
+        )
+        output_path = tmp_path / "test.epub"
+
+        builder = EmailEpubBuilder()
+        result = builder.build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        nav = book.get_item_with_href("nav.xhtml").get_content().decode()
+
+        expected = _truncate_toc_label(title)
+        assert expected in nav
+        assert len(expected) <= MAX_TOC_LABEL_LENGTH
+        # The untruncated subject never reaches the navigation label.
+        assert title not in nav
 
     def test_builds_epub_with_single_email(self, tmp_path):
         """It builds EPUB from single email."""

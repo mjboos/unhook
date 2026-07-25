@@ -28,10 +28,6 @@ logger = logging.getLogger(__name__)
 MAX_IMAGE_DIMENSION = 1200
 JPEG_QUALITY = 65
 
-# Cap for table-of-contents labels only.  The chapter heading itself is not
-# truncated: it is an ordinary <h1> that reflows on the e-reader.
-MAX_TOC_LABEL_LENGTH = 80
-
 # HTML tags allowed in email content for EPUB
 # NOTE: table/tbody/thead/tr/td/th are intentionally excluded.
 # Newsletter emails use deeply nested table layouts for positioning which
@@ -282,24 +278,16 @@ def _render_chapter_header(title: str, publication: str) -> str:
     return f"{eyebrow}\n{heading}"
 
 
-def _truncate_toc_label(title: str, max_length: int = MAX_TOC_LABEL_LENGTH) -> str:
-    """Shorten a title for use as a table-of-contents label.
+def _render_toc_label(title: str, publication: str) -> str:
+    """Build the table-of-contents label for an email.
 
-    Truncates on a word boundary and appends an ellipsis so the label is
-    visibly abbreviated rather than silently cut mid-word.  Titles that fit
-    are returned unchanged.
+    The publication is prefixed so a digest spanning several newsletters is
+    scannable from the TOC.  Labels are not truncated: the nav document
+    places no limit on their length, so it is left to the reader to lay out.
     """
-    if len(title) <= max_length:
+    if not publication:
         return title
-
-    # Reserve one character for the ellipsis.
-    clipped = title[: max_length - 1].rstrip()
-    head, separator, _ = clipped.rpartition(" ")
-    # Fall back to the hard cut when the first word alone exceeds the limit.
-    if separator:
-        clipped = head.rstrip()
-
-    return f"{clipped}…"
+    return f"{publication} — {title}"
 
 
 class EmailEpubBuilder:
@@ -335,7 +323,7 @@ class EmailEpubBuilder:
 
         for idx, email_content in enumerate(emails, start=1):
             chapter_title = email_content.title
-            toc_label = _truncate_toc_label(chapter_title)
+            toc_label = _render_toc_label(chapter_title, email_content.publication)
             chapter_filename = f"email_{idx}.xhtml"
 
             # Process images for this email

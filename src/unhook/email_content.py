@@ -6,6 +6,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
+from email.utils import parseaddr
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -39,6 +40,7 @@ class EmailContent:
     title: str
     html_body: str
     published: datetime
+    publication: str = ""
     inline_images: dict[str, bytes] = field(default_factory=dict)
     external_image_urls: list[str] = field(default_factory=list)
 
@@ -75,9 +77,31 @@ def parse_raw_email(raw: RawEmail) -> EmailContent | None:
         title=title,
         html_body=html_body,
         published=raw.date,
+        publication=extract_publication(raw.sender),
         inline_images=raw.inline_images,
         external_image_urls=external_urls,
     )
+
+
+def extract_publication(sender: str) -> str:
+    """Derive the publication name from a From header.
+
+    Newsletters send as ``Publication Name <list@example.com>``, so the
+    display name is the publication.  Falls back to the local part of the
+    address when the sender has no display name, and returns an empty
+    string when no name can be derived.
+    """
+    if not sender:
+        return ""
+
+    display_name, address = parseaddr(sender)
+    display_name = display_name.strip()
+    if display_name:
+        return display_name
+
+    address = address.strip()
+    local_part, _, _ = address.partition("@")
+    return local_part
 
 
 def _escape_html(text: str) -> str:
@@ -159,6 +183,7 @@ def strip_remote_image_tags(html: str) -> str:
 
 __all__ = [
     "EmailContent",
+    "extract_publication",
     "parse_raw_email",
     "replace_cid_references",
     "replace_external_image_urls",

@@ -360,6 +360,61 @@ class TestEmailEpubBuilder:
 
         assert f"<h1>{title}</h1>" in content
 
+    def test_renders_publication_above_title(self, tmp_path):
+        """It shows the publication name as an eyebrow above the heading."""
+        email = EmailContent(
+            title="The Post Title",
+            html_body="<p>Body</p>",
+            published=datetime.now(UTC),
+            publication="Astral Codex Ten",
+        )
+        output_path = tmp_path / "test.epub"
+
+        result = EmailEpubBuilder().build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        content = book.get_item_with_href("email_1.xhtml").get_content().decode()
+
+        assert "Astral Codex Ten" in content
+        assert "<h1>The Post Title</h1>" in content
+        assert content.index("Astral Codex Ten") < content.index("<h1>")
+
+    def test_omits_publication_line_when_unknown(self, tmp_path):
+        """It renders only the title when no publication could be derived."""
+        email = EmailContent(
+            title="The Post Title",
+            html_body="<p>Body</p>",
+            published=datetime.now(UTC),
+            publication="",
+        )
+        output_path = tmp_path / "test.epub"
+
+        result = EmailEpubBuilder().build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        content = book.get_item_with_href("email_1.xhtml").get_content().decode()
+
+        assert 'class="publication"' not in content
+        assert "<h1>The Post Title</h1>" in content
+
+    def test_escapes_markup_in_publication_name(self, tmp_path):
+        """It escapes a publication name containing HTML."""
+        email = EmailContent(
+            title="Title",
+            html_body="<p>Body</p>",
+            published=datetime.now(UTC),
+            publication="<script>alert(1)</script>Weekly",
+        )
+        output_path = tmp_path / "test.epub"
+
+        result = EmailEpubBuilder().build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        content = book.get_item_with_href("email_1.xhtml").get_content().decode()
+
+        assert "<script>" not in content
+        assert "Weekly" in content
+
     def test_truncates_toc_label_for_long_title(self, tmp_path):
         """It shortens the navigation label while keeping the heading full."""
         title = (

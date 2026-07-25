@@ -267,6 +267,21 @@ def _generate_image_filename(prefix: str, index: int, media_type: str) -> str:
     return f"images/{prefix}_{index}{extension}"
 
 
+def _render_chapter_header(title: str, publication: str) -> str:
+    """Render the heading block shown before an email's body.
+
+    The publication name is emitted above the title as an eyebrow line, the
+    way newsletters present it.  Emails with no derivable publication get
+    just the title.
+    """
+    heading = f"<h1>{bleach.clean(title)}</h1>"
+    if not publication:
+        return heading
+
+    eyebrow = f'<p class="publication"><em>{bleach.clean(publication)}</em></p>'
+    return f"{eyebrow}\n{heading}"
+
+
 def _truncate_toc_label(title: str, max_length: int = MAX_TOC_LABEL_LENGTH) -> str:
     """Shorten a title for use as a table-of-contents label.
 
@@ -377,7 +392,8 @@ class EmailEpubBuilder:
                 lang=self.language,
             )
             chapter.content = (
-                f"<h1>{bleach.clean(chapter_title)}</h1>\n{sanitized_html}"
+                f"{_render_chapter_header(chapter_title, email_content.publication)}"
+                f"\n{sanitized_html}"
             )
 
             book.add_item(chapter)

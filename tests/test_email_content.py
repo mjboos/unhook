@@ -6,6 +6,7 @@ import pytest
 
 from unhook.email_content import (
     EmailContent,
+    extract_publication,
     parse_raw_email,
     replace_cid_references,
     replace_external_image_urls,
@@ -56,10 +57,57 @@ class TestEmailContent:
         )
         assert content.inline_images == {}
         assert content.external_image_urls == []
+        assert content.publication == ""
+
+
+class TestExtractPublication:
+    """Tests for extract_publication function."""
+
+    def test_uses_display_name(self):
+        """It reads the publication from the From display name."""
+        sender = "Astral Codex Ten <astralcodexten@substack.com>"
+        assert extract_publication(sender) == "Astral Codex Ten"
+
+    def test_strips_quotes_around_display_name(self):
+        """It drops the quoting around a quoted display name."""
+        sender = '"Noahpinion" <noahpinion@substack.com>'
+        assert extract_publication(sender) == "Noahpinion"
+
+    def test_handles_decoded_non_ascii_display_name(self):
+        """It preserves non-ASCII publication names."""
+        sender = "Café Weekly <cafe@substack.com>"
+        assert extract_publication(sender) == "Café Weekly"
+
+    def test_falls_back_to_local_part(self):
+        """It uses the address local part when there is no display name."""
+        assert extract_publication("noahpinion@substack.com") == "noahpinion"
+
+    def test_falls_back_to_local_part_for_bare_angle_address(self):
+        """It handles an address in angle brackets with no display name."""
+        assert extract_publication("<noahpinion@substack.com>") == "noahpinion"
+
+    def test_returns_empty_for_empty_sender(self):
+        """It returns an empty string when the sender is missing."""
+        assert extract_publication("") == ""
+
+    def test_returns_empty_for_unparseable_sender(self):
+        """It returns an empty string rather than raising on junk input."""
+        assert extract_publication("   ") == ""
 
 
 class TestParseRawEmail:
     """Tests for parse_raw_email function."""
+
+    def test_sets_publication_from_sender(self, sample_raw_email):
+        """It carries the publication name through to EmailContent."""
+        sample_raw_email.sender = "Astral Codex Ten <acx@substack.com>"
+        content = parse_raw_email(sample_raw_email)
+        assert content.publication == "Astral Codex Ten"
+
+    def test_publication_falls_back_to_local_part(self, sample_raw_email):
+        """It derives a publication even from a bare address."""
+        content = parse_raw_email(sample_raw_email)
+        assert content.publication == "newsletter"
 
     def test_parses_html_email(self, sample_raw_email):
         """It parses email with HTML body."""

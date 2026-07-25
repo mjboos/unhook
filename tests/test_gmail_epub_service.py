@@ -12,6 +12,7 @@ from unhook.email_content import EmailContent
 from unhook.gmail_epub_service import (
     EmailEpubBuilder,
     _compress_image,
+    _render_toc_label,
     _sanitize_email_html,
     _strip_email_boilerplate,
     _strip_small_images,
@@ -287,8 +288,148 @@ async def test_download_external_images_empty_list():
     assert result == {}
 
 
+class TestRenderTocLabel:
+    """Tests for _render_toc_label function."""
+
+    def test_prefixes_publication(self):
+        """It prefixes the label with the publication name."""
+        result = _render_toc_label("The Post Title", "Astral Codex Ten")
+        assert result == "Astral Codex Ten — The Post Title"
+
+    def test_falls_back_to_title_without_publication(self):
+        """It uses the bare title when there is no publication."""
+        assert _render_toc_label("The Post Title", "") == "The Post Title"
+
+    def test_does_not_truncate_long_labels(self):
+        """It leaves long labels intact rather than capping them."""
+        title = (
+            "Why the Fed Just Blinked: Inside the Quiet Policy Shift "
+            "That Could Reshape Markets in 2026"
+        )
+        result = _render_toc_label(title, "Astral Codex Ten")
+
+        assert result.endswith(title)
+        assert "…" not in result
+
+
 class TestEmailEpubBuilder:
     """Tests for EmailEpubBuilder class."""
+
+    def test_preserves_full_title_in_chapter_heading(self, tmp_path):
+        """It renders the complete subject in the chapter <h1>."""
+        title = (
+            "Why the Fed Just Blinked: Inside the Quiet Policy Shift "
+            "That Could Reshape Markets in 2026"
+        )
+        email = EmailContent(
+            title=title,
+            html_body="<p>Body</p>",
+            published=datetime.now(UTC),
+        )
+        output_path = tmp_path / "test.epub"
+
+        builder = EmailEpubBuilder()
+        result = builder.build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        chapter = book.get_item_with_href("email_1.xhtml")
+        content = chapter.get_content().decode()
+
+        assert f"<h1>{title}</h1>" in content
+
+    def test_renders_publication_above_title(self, tmp_path):
+        """It shows the publication name as an eyebrow above the heading."""
+        email = EmailContent(
+            title="The Post Title",
+            html_body="<p>Body</p>",
+            published=datetime.now(UTC),
+            publication="Astral Codex Ten",
+        )
+        output_path = tmp_path / "test.epub"
+
+        result = EmailEpubBuilder().build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        content = book.get_item_with_href("email_1.xhtml").get_content().decode()
+
+        assert "Astral Codex Ten" in content
+        assert "<h1>The Post Title</h1>" in content
+        assert content.index("Astral Codex Ten") < content.index("<h1>")
+
+    def test_omits_publication_line_when_unknown(self, tmp_path):
+        """It renders only the title when no publication could be derived."""
+        email = EmailContent(
+            title="The Post Title",
+            html_body="<p>Body</p>",
+            published=datetime.now(UTC),
+            publication="",
+        )
+        output_path = tmp_path / "test.epub"
+
+        result = EmailEpubBuilder().build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        content = book.get_item_with_href("email_1.xhtml").get_content().decode()
+
+        assert 'class="publication"' not in content
+        assert "<h1>The Post Title</h1>" in content
+
+    def test_escapes_markup_in_publication_name(self, tmp_path):
+        """It escapes a publication name containing HTML."""
+        email = EmailContent(
+            title="Title",
+            html_body="<p>Body</p>",
+            published=datetime.now(UTC),
+            publication="<script>alert(1)</script>Weekly",
+        )
+        output_path = tmp_path / "test.epub"
+
+        result = EmailEpubBuilder().build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        content = book.get_item_with_href("email_1.xhtml").get_content().decode()
+
+        assert "<script>" not in content
+        assert "Weekly" in content
+
+    def test_writes_full_label_with_publication_to_nav(self, tmp_path):
+        """It writes the publication and the complete title to the nav."""
+        title = (
+            "Why the Fed Just Blinked: Inside the Quiet Policy Shift "
+            "That Could Reshape Markets in 2026"
+        )
+        email = EmailContent(
+            title=title,
+            html_body="<p>Body</p>",
+            published=datetime.now(UTC),
+            publication="Astral Codex Ten",
+        )
+        output_path = tmp_path / "test.epub"
+
+        builder = EmailEpubBuilder()
+        result = builder.build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        nav = book.get_item_with_href("nav.xhtml").get_content().decode()
+
+        assert f"Astral Codex Ten — {title}" in nav
+
+    def test_nav_label_omits_separator_without_publication(self, tmp_path):
+        """It writes the bare title to the nav when no publication is known."""
+        email = EmailContent(
+            title="The Post Title",
+            html_body="<p>Body</p>",
+            published=datetime.now(UTC),
+        )
+        output_path = tmp_path / "test.epub"
+
+        result = EmailEpubBuilder().build([email], {}, output_path)
+
+        book = epub.read_epub(str(result))
+        nav = book.get_item_with_href("nav.xhtml").get_content().decode()
+
+        assert ">The Post Title<" in nav
+        assert "—" not in nav
 
     def test_builds_epub_with_single_email(self, tmp_path):
         """It builds EPUB from single email."""

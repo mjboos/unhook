@@ -263,6 +263,33 @@ def _generate_image_filename(prefix: str, index: int, media_type: str) -> str:
     return f"images/{prefix}_{index}{extension}"
 
 
+def _render_chapter_header(title: str, publication: str) -> str:
+    """Render the heading block shown before an email's body.
+
+    The publication name is emitted above the title as an eyebrow line, the
+    way newsletters present it.  Emails with no derivable publication get
+    just the title.
+    """
+    heading = f"<h1>{bleach.clean(title)}</h1>"
+    if not publication:
+        return heading
+
+    eyebrow = f'<p class="publication"><em>{bleach.clean(publication)}</em></p>'
+    return f"{eyebrow}\n{heading}"
+
+
+def _render_toc_label(title: str, publication: str) -> str:
+    """Build the table-of-contents label for an email.
+
+    The publication is prefixed so a digest spanning several newsletters is
+    scannable from the TOC.  Labels are not truncated: the nav document
+    places no limit on their length, so it is left to the reader to lay out.
+    """
+    if not publication:
+        return title
+    return f"{publication} — {title}"
+
+
 class EmailEpubBuilder:
     """Build EPUB files from email content."""
 
@@ -295,7 +322,8 @@ class EmailEpubBuilder:
         image_counter = 0
 
         for idx, email_content in enumerate(emails, start=1):
-            chapter_title = email_content.title[:80]
+            chapter_title = email_content.title
+            toc_label = _render_toc_label(chapter_title, email_content.publication)
             chapter_filename = f"email_{idx}.xhtml"
 
             # Process images for this email
@@ -347,12 +375,13 @@ class EmailEpubBuilder:
 
             # Create chapter
             chapter = epub.EpubHtml(
-                title=chapter_title,
+                title=toc_label,
                 file_name=chapter_filename,
                 lang=self.language,
             )
             chapter.content = (
-                f"<h1>{bleach.clean(chapter_title)}</h1>\n{sanitized_html}"
+                f"{_render_chapter_header(chapter_title, email_content.publication)}"
+                f"\n{sanitized_html}"
             )
 
             book.add_item(chapter)

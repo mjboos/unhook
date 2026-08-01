@@ -1,0 +1,190 @@
+# Research: Collecting Substack links and sending articles to Kindle
+
+Goal: extend unhook so that Substack articles encountered while browsing (i.e.
+links, not newsletters arriving by email) can be collected and delivered to
+Kindle as EPUB digests, reusing the existing pipeline.
+
+The problem splits into three independent parts:
+
+1. **Link collection** — getting a URL from the browser/phone into the pipeline
+2. **Article fetching** — turning a Substack URL into clean HTML + images
+3. **EPUB build & delivery** — already solved by the existing code
+
+## 1. Article fetching (verified)
+
+Substack has no official API, but every publication exposes a JSON endpoint on
+its own domain (including custom domains like `astralcodexten.com`):
+
+```
+GET https://<publication-domain>/api/v1/posts/<slug>
+```
+
+Verified 2026-08-01 with an unauthenticated request: the response includes
+`title`, `subtitle`, `post_date`, `canonical_url`, `cover_image`,
+`publishedBylines[].name`, and — critically — `body_html` with the full,
+clean article HTML (no page chrome, no nav, no comments). For a free ACX post
+this returned ~110 KB of article HTML. This is far cleaner than scraping the
+web page and needs no headless browser.
+
+Other useful endpoints:
+
+- `GET /api/v1/archive?sort=new&limit=N` — recent posts with slugs and
+  `audience` field (`everyone` vs `only_paid`)
+- `GET /feed` — standard RSS per publication (only useful for a
+  subscription-based model, not link collection)
+
+### Paywalled posts
+
+Verified: for an `audience: only_paid` post the unauthenticated endpoint
+returns `body_html` of length 0. Attaching the `substack.sid` session cookie
+from a logged-in browser session (DevTools → Application → Cookies →
+substack.com) unlocks full content **for publications the account actually
+subscribes to**. Established tools ([sbstck-dl](https://github.com/alexferrari88/sbstck-dl),
+[substack-api on PyPI](https://pypi.org/project/substack-api/)) use exactly
+this mechanism. Implications:
+
+- Store the cookie as a GitHub Actions secret (`SUBSTACK_SID`); treat it like
+  a password.
+- The cookie is long-lived but does expire eventually — the pipeline should
+  degrade gracefully (skip the post, note it in the digest or logs) rather
+  than fail the run.
+
+### URL normalization
+
+Shared Substack links come in several shapes that must be resolved to
+`(publication_domain, slug)`:
+
+- `https://pub.substack.com/p/<slug>` — direct
+- `https://custom-domain.com/p/<slug>` — direct (API lives on same domain)
+- `https://open.substack.com/pub/<pub>/p/<slug>?...` — app share links;
+  follow the redirect to the canonical URL
+- Links with tracking params (`?utm_...`, `?r=...`) — strip query string
+- `https://substack.com/home/post/p-<id>` and `/@author/...` note links —
+  follow redirects; if resolution fails, fall back to fetching the page and
+  reading `<link rel="canonical">`
+
+A dependency-free approach: `httpx.get(url, follow_redirects=True)`, take the
+final URL, extract host and the path segment after `/p/`.
+
+## 2. Link collection options
+
+The constraint that shapes everything: unhook has **no server** — it is a CLI
+plus scheduled GitHub Actions. So the collector must be a queue that a
+workflow can poll, not an endpoint that receives pushes.
+
+### Option A — Gmail label as link inbox (recommended v1)
+
+Share a link from any browser/phone via the share sheet → Gmail → email it to
+yourself. A Gmail filter (`from:me`, body contains `substack.com` — or a
+subject prefix like `kindle:`) applies a label such as `kindle-links`. A new
+CLI command polls that label, extracts URLs from message bodies, fetches the
+articles, builds the EPUB, and the workflow emails it to the Kindle address.
+
+- **Reuse**: `GmailService` (IMAP by label), the send-mail workflow step, all
+  EPUB/image machinery. Zero new accounts, zero new secrets.
+- **Friction**: 2–3 taps on mobile (share → Gmail → send). Acceptable.
+- **State handling is free**: `since_days` windowing already exists; or move
+  processed messages out of the label via IMAP so nothing is sent twice.
+
+### Option B — Raindrop.io as link inbox (nicest UX)
+
+[Raindrop.io](https://developer.raindrop.io/) (free tier) has polished browser
+extensions and mobile share-sheet apps. Save a link with one click into a
+`kindle` collection/tag. Its REST API (`https://api.raindrop.io/rest/v1/`)
+supports fetching raindrops by collection/tag with a **test token that never
+expires** (Settings → Integrations) — ideal for a GitHub Actions secret.
+After processing, the workflow re-tags or archives the bookmark so it isn't
+resent.
+
+- **Friction**: 1 click / 2 taps — the best save experience.
+- **Cost**: one new external account + one new secret; a small API client
+  module (~50 lines with httpx).
+
+### Option C — Telegram bot as link inbox
+
+Share links to a personal bot from any share sheet; a workflow polls
+`getUpdates` (long-poll pull — no server needed). **Caveat that kills it for
+this project's cadence**: Telegram only retains unconfirmed updates for
+[24 hours](https://core.telegram.org/bots/api#getupdates), so a twice-weekly
+cron would silently lose links. It would force a daily "drain links into a
+committed queue file" job — extra moving parts for no UX gain over Raindrop.
+
+### Option D — Browser extension / bookmarklet → GitHub API
+
+A small extension (or bookmarklet) that appends the current URL to a
+`links/queue.json` in the repo via the GitHub contents API, or opens a
+pre-filled GitHub issue labeled `kindle`; the workflow processes and clears
+the queue. Works, and keeps everything in one repo — but requires embedding a
+fine-grained PAT in the extension, building/maintaining the extension for
+desktop **and** solving mobile separately (no extensions on mobile Chrome/
+Safari without workarounds). Highest effort, worst mobile story. Not worth it
+when A/B exist.
+
+### Option E — Off-the-shelf (baseline to beat)
+
+Amazon's own **Send to Kindle** browser extension/share target, Push to
+Kindle, KTool, Readwise Reader all send single articles immediately. None of
+them: batch into periodic digests, use your Substack session for paywalled
+subscriber content, apply unhook's Kindle-friendly sanitization, or keep you
+out of vendor lock-in. They're fine as a stopgap but don't meet the
+"digestible periodic EPUB" goal of this project.
+
+## 3. Pipeline integration (what gets reused)
+
+Almost the entire Gmail pipeline transfers; `body_html` from the Substack API
+is *cleaner* input than newsletter email HTML:
+
+| Stage | Existing code | Reuse |
+|---|---|---|
+| HTML sanitization | `gmail_epub_service._sanitize_email_html` (bleach allowlist, boilerplate strip) | as-is (boilerplate regexes already target Substack chrome) |
+| Image download + compression | `download_external_images`, `_compress_image` | as-is |
+| Remote-image stripping / URL rewrite | `email_content.replace_external_image_urls`, `strip_remote_image_tags` | as-is |
+| EPUB assembly (chapters, TOC with publication eyebrow) | `EmailEpubBuilder` | near as-is — generalize `EmailContent` (title/publication/published/html_body/external_image_urls) or introduce a shared `ArticleContent` dataclass |
+| Delivery | `gmail-kindle.yml` send-mail step + EPUB validation step | copy |
+
+New code needed:
+
+- `substack_fetcher.py` — URL normalization + `/api/v1/posts/<slug>` client
+  (httpx, optional `substack.sid` cookie), map JSON → `ArticleContent`
+  (title, publication name from host or `publication` field, author byline,
+  date, `body_html`, cover image prepended)
+- Link-source module — Option A: extend `GmailService` usage with a second
+  label + URL extraction from message bodies; Option B: small Raindrop client
+- `cmd.py` — new command, e.g. `unhook substack-to-kindle --label kindle-links`
+- `.github/workflows/substack-kindle.yml` — same shape as `gmail-kindle.yml`
+  (could also just be folded into the existing Mon/Thu run so one email
+  carries both digests)
+
+Estimated scope: ~300–400 lines of source + tests; no new heavyweight
+dependencies (httpx already present).
+
+## Recommendation
+
+1. **v1: Option A (Gmail label inbox).** No new accounts or secrets, reuses
+   `GmailService`, and the phone share-sheet → Gmail flow is good enough to
+   validate the habit. Fold delivery into the existing Mon/Thu cadence.
+2. **v2: add Option B (Raindrop)** as an alternative link source behind the
+   same fetcher/EPUB code if the email friction proves annoying — the link
+   source is a ~50-line pluggable module either way.
+3. **Paywalled content**: add optional `SUBSTACK_SID` secret support from the
+   start (it's one cookie header on the fetch), skip-with-warning when absent
+   or expired.
+
+### Open questions
+
+- Should non-Substack article links in the inbox be rejected, or handled via
+  a generic readability-style extractor (e.g. `trafilatura`) as a later
+  extension? The URL-normalization step is the natural dispatch point.
+- Digest cadence: piggyback on the newsletter email (one Kindle email, two
+  EPUBs) vs. separate workflow.
+
+## Sources
+
+- [Unofficial Substack API wrapper (NHagar/substack_api)](https://github.com/NHagar/substack_api)
+- [substack-api on PyPI](https://pypi.org/project/substack-api/)
+- [Unofficial Substack API reference — 129 verified endpoints](https://github.com/AnthonyDavidAdams/substack-api-reference)
+- [Reverse-engineering the Substack API](https://iam.slys.dev/p/no-official-api-no-problem-how-i)
+- [sbstck-dl — CLI Substack downloader with cookie auth](https://github.com/alexferrari88/sbstck-dl)
+- [Raindrop.io API docs](https://developer.raindrop.io/)
+- [Telegram Bot API — getUpdates 24h retention](https://core.telegram.org/bots/api#getupdates)
+- Live verification (2026-08-01): `GET https://www.astralcodexten.com/api/v1/posts/<slug>` returns full `body_html` for free posts, empty for `only_paid` posts without a session cookie.

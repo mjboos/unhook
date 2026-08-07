@@ -49,6 +49,40 @@ this mechanism. Implications:
   degrade gracefully (skip the post, note it in the digest or logs) rather
   than fail the run.
 
+### How official/stable is this API?
+
+**It is not official.** `/api/v1/*` is the internal JSON API that Substack's
+own web frontend uses to render pages — undocumented, unsupported, and
+changeable without notice. Substack *did* launch an official
+[Developer API in 2026](https://support.substack.com/hc/en-us/articles/45099095296916-Substack-Developer-API),
+but it is currently limited to public-profile lookups (gated behind an
+[API ToS](https://substack.com/api-tos) agreement and manual approval) and has
+no content/posts endpoints — it does not help this use case.
+
+In practice the internal API is de facto very stable:
+
+- It has existed for years — community wrappers date back to at least 2022–23
+  ([substack-api first PyPI release May 2023](https://pypi.org/project/substack-api/),
+  active through v1.3.0 in May 2026; a
+  [custom front-end built on it in 2022](https://matthagy.substack.com/p/developing-a-custom-substack-front)).
+  It was almost certainly available when unhook was first built, just obscure.
+- Substack can't remove it wholesale without breaking their own site; the
+  realistic risks are response-shape drift and IP throttling at scraper
+  volumes ("Substack will throttle or block your IP if you make too many
+  requests"). A personal digest making a handful of requests twice a week is
+  indistinguishable from normal browsing traffic.
+- ToS honesty: like most platforms, Substack's general terms prohibit
+  unauthorized automated access. Low-volume personal fetching of content you
+  can already read (and, for paywalled posts, pay for) is widely done and has
+  drawn no enforcement against the open-source tools doing it for 3+ years —
+  but it is tolerated, not sanctioned.
+
+Mitigations: keep the fetcher a small isolated module so the strategy is
+swappable; fail soft (skip a post, log it) rather than fail the run. If the
+JSON endpoint ever disappears, fallbacks exist: the article HTML page embeds
+the same post JSON in `window._preloads`, and free posts are available via
+each publication's RSS `/feed`.
+
 ### URL normalization
 
 Shared Substack links come in several shapes that must be resolved to

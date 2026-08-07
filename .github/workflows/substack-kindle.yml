@@ -1,0 +1,116 @@
+name: Substack to Kindle
+
+on:
+  schedule:
+    - cron: "0 18 * * 1,4" # Monday & Thursday at 18:00 UTC (evening CET)
+  workflow_dispatch:
+    inputs:
+      since_days:
+        description: "Days of history to include"
+        required: false
+        default: "4"
+      publications:
+        description: "Comma-separated publications (overrides repo variable)"
+        required: false
+        default: ""
+
+jobs:
+  fetch-and-send:
+    runs-on: ubuntu-latest
+    env:
+      SUBSTACK_PUBLICATIONS: ${{ inputs.publications || vars.SUBSTACK_PUBLICATIONS }}
+      SUBSTACK_SID: ${{ secrets.SUBSTACK_SID }}
+      SINCE_DAYS: ${{ inputs.since_days || '4' }}
+    steps:
+      - name: Check publications configured
+        id: config
+        run: |
+          if [ -z "$SUBSTACK_PUBLICATIONS" ]; then
+            echo "No publications configured. Set the SUBSTACK_PUBLICATIONS repository variable."
+            echo "configured=false" >> $GITHUB_OUTPUT
+          else
+            echo "configured=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        if: steps.config.outputs.configured == 'true'
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        if: steps.config.outputs.configured == 'true'
+        run: uv sync
+
+      - name: Fetch Substack posts and export EPUB
+        if: steps.config.outputs.configured == 'true'
+        id: export
+        run: |
+          uv run python -m unhook.cmd substack-to-kindle \
+            --since-days "$SINCE_DAYS" \
+            --output-dir "exports" \
+            --file-prefix "substack"
+
+          # Check if any EPUB was created
+          if ls exports/*.epub 1> /dev/null 2>&1; then
+            echo "epub_created=true" >> $GITHUB_OUTPUT
+          else
+            echo "epub_created=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate EPUB has no remote embedded images
+        if: steps.export.outputs.epub_created == 'true'
+        run: |
+          epub_path="$(ls -t exports/*.epub | head -n 1)"
+          echo "Validating $epub_path"
+          tmpdir="$(mktemp -d)"
+          unzip -q "$epub_path" -d "$tmpdir"
+          python - <<'PY' "$tmpdir/EPUB"
+          import pathlib
+          import re
+          import sys
+
+          epub_dir = pathlib.Path(sys.argv[1])
+          pattern = re.compile(
+              r"<img\b[^>]*\bsrc\s*=\s*(?:[\"']https?://[^\"']+[\"']|https?://[^\s>]+)",
+              re.IGNORECASE,
+          )
+          violations = []
+
+          for xhtml_path in sorted(epub_dir.glob("*.xhtml")):
+              text = xhtml_path.read_text(encoding="utf-8", errors="ignore")
+              for lineno, line in enumerate(text.splitlines(), start=1):
+                  if pattern.search(line):
+                      violations.append((xhtml_path.name, lineno, line.strip()))
+
+          if violations:
+              print("Found remote embedded image src in EPUB XHTML:")
+              for file_name, lineno, line in violations:
+                  print(f"{file_name}:{lineno}: {line}")
+              raise SystemExit(1)
+
+          print("No remote embedded image sources found.")
+          PY
+
+      - name: Send EPUB via email
+        if: steps.export.outputs.epub_created == 'true'
+        uses: dawidd6/action-send-mail@v5
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.GAPPPWD }}
+          secure: false
+          subject: "Substack digest"
+          to: ${{ secrets.AMAZON_KINDLE_ADDRESS }}
+          from: "Github actions <${{ secrets.SMTP_USERNAME }}>"
+          body: "Automated Substack EPUB export."
+          attachments: "exports/*.epub"
+
+      - name: Log no posts found
+        if: steps.config.outputs.configured == 'true' && steps.export.outputs.epub_created == 'false'
+        run: echo "No posts found matching criteria. Skipping send."

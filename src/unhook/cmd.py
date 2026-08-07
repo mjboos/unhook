@@ -156,5 +156,61 @@ def gmail_to_kindle(
         raise typer.Exit(0)
 
 
+@app.command()
+def substack_to_kindle(
+    publications: str = typer.Option(
+        None,
+        envvar="SUBSTACK_PUBLICATIONS",
+        help=(
+            "Comma-separated publications to fetch: subdomain (thezvi), "
+            "domain (www.astralcodexten.com), or full URL"
+        ),
+    ),
+    output_dir: Path = typer.Option(Path("exports"), help="Directory to save EPUBs"),
+    since_days: int = typer.Option(4, help="Only include posts from the last N days"),
+    file_prefix: str = typer.Option("substack", help="Filename prefix for the EPUB"),
+    substack_sid: str = typer.Option(
+        None,
+        envvar="SUBSTACK_SID",
+        help="substack.sid session cookie to unlock paywalled posts (optional)",
+    ),
+) -> None:
+    """Fetch recent posts from Substack publications and export as EPUB.
+
+    Uses Substack's JSON API directly instead of newsletter emails.
+    Set SUBSTACK_PUBLICATIONS to a comma-separated list of publications,
+    and optionally SUBSTACK_SID to include paywalled posts you subscribe to.
+    """
+    from unhook.substack_service import export_substack_to_epub, parse_publications
+
+    if not publications:
+        typer.echo(
+            "Error: publications required. Set SUBSTACK_PUBLICATIONS env var",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    publication_urls = parse_publications(publications)
+    if not publication_urls:
+        typer.echo("Error: no valid publications in list", err=True)
+        raise typer.Exit(1)
+
+    output_path = asyncio.run(
+        export_substack_to_epub(
+            publications=publication_urls,
+            output_dir=output_dir,
+            since_days=since_days,
+            file_prefix=file_prefix,
+            sid=substack_sid,
+        )
+    )
+
+    if output_path:
+        typer.echo(f"Saved EPUB to {output_path}")
+    else:
+        typer.echo("No posts found matching criteria. Skipping.", err=True)
+        raise typer.Exit(0)
+
+
 if __name__ == "__main__":
     app()  # pragma: no cover

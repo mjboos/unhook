@@ -71,6 +71,12 @@ In practice the internal API is de facto very stable:
   volumes ("Substack will throttle or block your IP if you make too many
   requests"). A personal digest making a handful of requests twice a week is
   indistinguishable from normal browsing traffic.
+- Observed in practice (2026-08): some `*.substack.com` domains sit behind a
+  Cloudflare bot heuristic that challenges Python's default TLS fingerprint
+  (HTTP 403 with `cf-mitigated: challenge`) while custom domains did not.
+  Requests succeed with a browser-like TLS cipher ordering, which
+  `substack_service._make_client` now sets. The per-publication fail-soft
+  behavior covers the case where a domain is challenged anyway.
 - ToS honesty: like most platforms, Substack's general terms prohibit
   unauthorized automated access. Low-volume personal fetching of content you
   can already read (and, for paywalled posts, pay for) is widely done and has

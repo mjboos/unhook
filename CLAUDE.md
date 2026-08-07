@@ -70,6 +70,18 @@ uv run unhook gmail-to-kindle --since-days 4         # emails from last 4 days
 uv run unhook gmail-to-kindle --output-dir ./out     # custom output directory
 ```
 
+### Substack to Kindle EPUB
+Fetch recent posts from Substack publications via their JSON API and export as EPUB:
+```bash
+uv run unhook substack-to-kindle --publications "thezvi, www.astralcodexten.com"
+uv run unhook substack-to-kindle --since-days 7      # posts from last 7 days
+uv run unhook substack-to-kindle --output-dir ./out  # custom output directory
+```
+Publications accept a bare subdomain (`thezvi`), domain, or full URL.
+Set `SUBSTACK_PUBLICATIONS` (comma-separated list) and optionally
+`SUBSTACK_SID` (the `substack.sid` browser cookie, to include paywalled
+posts from subscribed publications) instead of passing options.
+
 ### Testing
 Run all tests with coverage:
 ```bash
@@ -136,6 +148,7 @@ uv run tox -e pre-commit
   - `fetch`: Fetch Bluesky timeline posts and save to parquet
   - `export-epub`: Fetch posts and export as EPUB with images
   - `gmail-to-kindle`: Fetch Gmail emails by label and export as EPUB
+  - `substack-to-kindle`: Fetch Substack posts via JSON API and export as EPUB
 
 ### Project Structure
 - `src/unhook/`: Main source code
@@ -148,6 +161,7 @@ uv run tox -e pre-commit
   - `gmail_service.py`: Gmail IMAP client for fetching emails by label
   - `email_content.py`: Email content parsing (HTML/text bodies, inline images, external image extraction)
   - `gmail_epub_service.py`: Gmail-to-EPUB pipeline (HTML sanitization, boilerplate stripping, image handling, EPUB building)
+  - `substack_service.py`: Substack JSON API client (archive + post fetching, paywall detection) reusing the email EPUB pipeline
 - `tests/`: Test files mirroring source structure
   - `conftest.py`: Shared fixtures (`make_post`, `make_repost`, `make_post_mock`, `mock_env_vars`, etc.)
 - `docs/`: Documentation
@@ -157,6 +171,7 @@ uv run tox -e pre-commit
   - `integration.yml`: Manual dispatch for Bluesky integration test with EPUB export
   - `kindle.yml`: Weekly Bluesky EPUB to Kindle (Saturday 18:00 UTC)
   - `gmail-kindle.yml`: Twice-weekly Gmail newsletter EPUB to Kindle (Mon/Thu 18:00 UTC)
+  - `substack-kindle.yml`: Twice-weekly Substack API EPUB to Kindle (Mon/Thu 18:00 UTC; reads the `SUBSTACK_PUBLICATIONS` repository variable and optional `SUBSTACK_SID` secret)
 - `.env`: Credentials (not committed to git)
 - Minimum Python version: 3.12
 

@@ -217,3 +217,75 @@ class TestGmailToKindle:
 
             assert result.exit_code == 0
             assert "No emails found" in result.output
+
+
+class TestSubstackToKindle:
+    """Tests for the substack-to-kindle CLI command."""
+
+    def test_missing_publications(self, runner: CliRunner):
+        """It exits with error when no publications are provided."""
+        result = runner.invoke(app, ["substack-to-kindle"])
+        assert result.exit_code == 1
+        assert "publications required" in result.output
+
+    def test_successful_export(self, runner: CliRunner, tmp_path):
+        """It exports posts to EPUB successfully."""
+        from unhook.substack_service import parse_publications
+
+        mock_export = AsyncMock(return_value=tmp_path / "substack.epub")
+        mock_module = MagicMock(
+            export_substack_to_epub=mock_export,
+            parse_publications=parse_publications,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            with runner.isolated_filesystem(temp_dir=tmp_path):
+                result = runner.invoke(
+                    app,
+                    ["substack-to-kindle", "--publications", "thezvi"],
+                )
+
+            assert result.exit_code == 0
+            assert "Saved EPUB" in result.output
+        mock_export.assert_awaited_once()
+        assert mock_export.await_args.kwargs["publications"] == [
+            "https://thezvi.substack.com"
+        ]
+
+    def test_no_posts_found(self, runner: CliRunner, tmp_path):
+        """It reports when no posts match criteria."""
+        from unhook.substack_service import parse_publications
+
+        mock_export = AsyncMock(return_value=None)
+        mock_module = MagicMock(
+            export_substack_to_epub=mock_export,
+            parse_publications=parse_publications,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            with runner.isolated_filesystem(temp_dir=tmp_path):
+                result = runner.invoke(
+                    app,
+                    ["substack-to-kindle", "--publications", "thezvi"],
+                )
+
+            assert result.exit_code == 0
+            assert "No posts found" in result.output
+
+    def test_publications_from_env(self, runner: CliRunner, tmp_path, monkeypatch):
+        """It reads the publication list from SUBSTACK_PUBLICATIONS."""
+        from unhook.substack_service import parse_publications
+
+        monkeypatch.setenv("SUBSTACK_PUBLICATIONS", "thezvi, astralcodexten")
+        mock_export = AsyncMock(return_value=tmp_path / "substack.epub")
+        mock_module = MagicMock(
+            export_substack_to_epub=mock_export,
+            parse_publications=parse_publications,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            with runner.isolated_filesystem(temp_dir=tmp_path):
+                result = runner.invoke(app, ["substack-to-kindle"])
+
+            assert result.exit_code == 0
+        assert mock_export.await_args.kwargs["publications"] == [
+            "https://thezvi.substack.com",
+            "https://astralcodexten.substack.com",
+        ]

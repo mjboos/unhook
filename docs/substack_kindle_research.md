@@ -192,6 +192,54 @@ New code needed:
 Estimated scope: ~300–400 lines of source + tests; no new heavyweight
 dependencies (httpx already present).
 
+## Should the API replace email ingestion entirely?
+
+Once a Substack fetcher exists, the scheduled newsletter digest itself could
+be produced by *pulling* from the API instead of parsing emails: keep a list
+of subscribed publications, hit each one's
+`/api/v1/archive?sort=new&limit=N`, take posts with `post_date` in the
+window (verified: the archive response carries `post_date`, `audience`, and
+`type` per post — a direct replacement for the `since_days` email
+windowing), fetch each via `/api/v1/posts/<slug>`, and build the digest.
+Ad-hoc link additions (public posts from unsubscribed publications, paid
+posts you have access to) then just append to the same `(domain, slug)`
+list — one pipeline, one EPUB, one send.
+
+Why the API path is better for Substack content:
+
+- **Cleaner input.** `body_html` is article-only. Most of the hard-won email
+  code — table-layout stripping, boilerplate regexes, tracking-pixel
+  removal, `substack.com/redirect` link mangling — exists to fight email
+  HTML and becomes unnecessary.
+- **No truncation.** Gmail clips messages over ~102 KB; long posts arrive
+  cut off in email but always complete via the API.
+- **Uniformity.** Scheduled subscriptions and ad-hoc links share every stage
+  after the URL list is assembled.
+- **Simpler plumbing.** No Gmail filters/labels for the Substack side;
+  publication list lives in a config file in the repo (explicit, versioned).
+  Auto-discovering subscriptions via the authenticated API is possible but
+  a config list is simpler and avoids a hard auth dependency.
+
+Why *not* to delete the email pipeline outright:
+
+- **Non-Substack newsletters.** The email path is provider-agnostic (Ghost,
+  beehiiv, Buttondown, …). The API path only covers Substack. Whether email
+  can be fully retired is purely a question of what actually lands in the
+  label today.
+- **Paid content robustness — the one real tradeoff.** A paid subscriber
+  *receives full content by email* with zero credentials, forever. The API
+  needs a `substack.sid` cookie that eventually expires; when it does, paid
+  posts silently come back empty until the secret is refreshed. Mitigation:
+  when a post has `audience != everyone` and `body_html` is empty, fail loud
+  (workflow warning / non-zero notice), and fall back to the email copy if
+  the Gmail path still exists.
+
+Sensible migration: build the fetcher for ad-hoc links first (needed
+anyway), run API-based and email-based digests side by side for a cadence or
+two to compare fidelity, then narrow the Gmail label filter to non-Substack
+senders — keeping `gmail-to-kindle` as the fallback/generic path rather than
+deleting it.
+
 ## Recommendation
 
 1. **v1: Option A (Gmail label inbox).** No new accounts or secrets, reuses

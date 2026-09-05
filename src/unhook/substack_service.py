@@ -428,14 +428,25 @@ async def export_substack_to_epub(
             skipped_paywalled.extend(skipped)
 
     if skipped_paywalled:
-        # Fail loud: an expired substack.sid silently empties paid posts,
-        # so surface exactly which posts were dropped.
-        logger.warning(
-            "Skipped %d paywalled post(s) with no accessible content "
-            "(check the substack.sid cookie): %s",
-            len(skipped_paywalled),
-            ", ".join(skipped_paywalled),
-        )
+        if sid:
+            # A cookie was supplied but subscriber-only posts still came back
+            # empty, which is what an expired substack.sid looks like.  Fail
+            # loud rather than let paid posts vanish from the digest silently.
+            logger.warning(
+                "Skipped %d subscriber-only post(s) despite a substack.sid "
+                "cookie; it may have expired, or the account may not have "
+                "access to these publications: %s",
+                len(skipped_paywalled),
+                ", ".join(skipped_paywalled),
+            )
+        else:
+            # No cookie configured: free-posts-only is the intended mode, so
+            # skipping subscriber-only posts is expected, not a fault.
+            logger.info(
+                "Skipped %d subscriber-only post(s) (no substack.sid "
+                "configured, so only free posts are included)",
+                len(skipped_paywalled),
+            )
 
     if not contents:
         logger.warning(

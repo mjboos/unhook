@@ -450,8 +450,13 @@ class TestExportSubstackToEpub:
         assert "Failed to fetch archive" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_warns_on_paywalled_skips(self, tmp_path, monkeypatch, caplog):
-        """It logs a loud warning listing skipped paywalled posts."""
+    async def test_paywalled_skips_are_info_without_cookie(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """Free-only mode reports skips at info level, not as a warning."""
+        import logging
+
+        caplog.set_level(logging.INFO)
         archive = [
             {"slug": "free-post", "post_date": recent_iso()},
             {"slug": "paid-post", "post_date": recent_iso()},
@@ -475,7 +480,39 @@ class TestExportSubstackToEpub:
             publications=[BASE_URL], output_dir=tmp_path, since_days=30
         )
         assert result is not None
-        assert "paywalled" in caplog.text
+        assert "only free posts are included" in caplog.text
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+    @pytest.mark.asyncio
+    async def test_warns_on_paywalled_skips(self, tmp_path, monkeypatch, caplog):
+        """It logs a loud warning listing skipped posts when a cookie is set."""
+        archive = [
+            {"slug": "free-post", "post_date": recent_iso()},
+            {"slug": "paid-post", "post_date": recent_iso()},
+        ]
+        client = _mock_client(
+            {
+                "/api/v1/archive": archive,
+                "/api/v1/posts/free-post": make_post_json(slug="free-post"),
+                "/api/v1/posts/paid-post": make_post_json(
+                    slug="paid-post", body_html="", audience="only_paid"
+                ),
+            }
+        )
+        client.__aenter__ = AsyncMock(return_value=client)
+        client.__aexit__ = AsyncMock(return_value=None)
+        monkeypatch.setattr(
+            "unhook.substack_service._make_client", lambda sid=None: client
+        )
+
+        result = await export_substack_to_epub(
+            publications=[BASE_URL],
+            output_dir=tmp_path,
+            since_days=30,
+            sid="stale-cookie",
+        )
+        assert result is not None
+        assert "may have expired" in caplog.text
         assert "paid-post" in caplog.text
 
     @pytest.mark.asyncio

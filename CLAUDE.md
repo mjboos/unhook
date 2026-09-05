@@ -188,7 +188,7 @@ uv run tox -e pre-commit
   - `integration.yml`: Manual dispatch for Bluesky integration test with EPUB export
   - `kindle.yml`: Weekly Bluesky EPUB to Kindle (Saturday 18:00 UTC)
   - `gmail-kindle.yml`: Twice-weekly Gmail newsletter EPUB to Kindle (Mon/Thu 18:00 UTC)
-  - `substack-kindle.yml`: Twice-weekly Substack API EPUB to Kindle (Mon/Thu 18:00 UTC; reads the `SUBSTACK_PUBLICATIONS` repository variable and optional `SUBSTACK_SID` secret)
+  - `substack-kindle.yml`: Daily Substack API EPUB to Kindle (18:00 UTC; reads the `SUBSTACK_PUBLICATIONS` repository variable and optional `SUBSTACK_SID` secret). `SINCE_DAYS` must match the schedule — the pipeline keeps no record of what it already sent, so a wider window re-sends posts
 - `.env`: Credentials (not committed to git)
 - Minimum Python version: 3.12
 

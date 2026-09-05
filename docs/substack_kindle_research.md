@@ -221,9 +221,28 @@ New code needed:
 - Link-source module — Option A: extend `GmailService` usage with a second
   label + URL extraction from message bodies; Option B: small Raindrop client
 - `cmd.py` — new command, e.g. `unhook substack-to-kindle --label kindle-links`
-- `.github/workflows/substack-kindle.yml` — same shape as `gmail-kindle.yml`
-  (could also just be folded into the existing Mon/Thu run so one email
-  carries both digests)
+- `.github/workflows/substack-kindle.yml` — same shape as `gmail-kindle.yml`,
+  running daily at 18:00 UTC with a matching one-day window
+
+### Cadence and the missing de-duplication state
+
+The digest is stateless: each run asks for "posts from the last N days" and
+sends whatever it finds, with no record of what previous runs already sent.
+That makes `SINCE_DAYS` and the cron schedule a matched pair —
+
+- **window > gap between runs** → posts appear in several consecutive
+  digests (a 4-day window on a daily schedule sends everything ~4 times);
+- **window == gap** (the current daily/`1` setup) → each post is sent once,
+  but the coverage is exactly contiguous, so anything published inside a
+  scheduling delay or a failed run is missed permanently. GitHub's cron is
+  best-effort and routinely runs minutes late under load, so small gaps are
+  expected in practice.
+
+Fixing that properly means keeping state: record the ids of posts already
+sent (a committed JSON file, or a cache keyed by publication) and widen the
+window for slack, filtering out anything already delivered. Until then the
+current setting trades rare missed posts for never sending duplicates,
+which is the better failure mode for a reading digest.
 
 Estimated scope: ~300–400 lines of source + tests; no new heavyweight
 dependencies (httpx already present).

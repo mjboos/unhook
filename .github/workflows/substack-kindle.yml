@@ -2,13 +2,13 @@ name: Substack to Kindle
 
 on:
   schedule:
-    - cron: "0 18 * * 1,4" # Monday & Thursday at 18:00 UTC (evening CET)
+    - cron: "0 18 * * *" # Daily at 18:00 UTC (evening CET)
   workflow_dispatch:
     inputs:
       since_days:
         description: "Days of history to include"
         required: false
-        default: "4"
+        default: "1"
       publications:
         description: "Comma-separated publications (overrides repo variable)"
         required: false
@@ -20,7 +20,10 @@ jobs:
     env:
       SUBSTACK_PUBLICATIONS: ${{ inputs.publications || vars.SUBSTACK_PUBLICATIONS }}
       SUBSTACK_SID: ${{ secrets.SUBSTACK_SID }}
-      SINCE_DAYS: ${{ inputs.since_days || '4' }}
+      # The window must match the schedule: the pipeline keeps no record of
+      # what it already sent, so a window wider than the gap between runs
+      # re-sends the same posts in consecutive digests.
+      SINCE_DAYS: ${{ inputs.since_days || '1' }}
     steps:
       - name: Check publications configured
         id: config

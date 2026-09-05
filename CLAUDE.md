@@ -8,8 +8,8 @@ Unhook is a tool designed to help users reclaim their attention from social medi
 
 1. **Feed fetching**: Fetch Bluesky timeline or author feed posts, with self-thread detection and consolidation, and save to parquet files
 2. **EPUB creation**: Filter posts by length, deduplicate, handle reposts and quoted posts, download and compress images, and export as EPUB
-3. **Newsletter digests**: Fetch emails from Gmail via IMAP by label, parse HTML/plain-text content with inline and external images, strip boilerplate, and export as EPUB
-4. **Kindle delivery**: Scheduled GitHub Actions workflows email EPUBs to a Kindle address (weekly for Bluesky, twice weekly for newsletters)
+3. **Newsletter digests**: Fetch posts from Substack publications via their JSON API and export as EPUB. The same EPUB machinery also backs a Gmail-label path (`gmail-to-kindle`), kept for non-Substack newsletters but no longer run on a schedule
+4. **Kindle delivery**: Scheduled GitHub Actions workflows email EPUBs to a Kindle address (weekly for Bluesky, daily for Substack)
 
 ## Development Setup
 
@@ -62,7 +62,9 @@ uv run unhook export-epub --output-dir ./out         # custom output directory
 ```
 
 ### Gmail to Kindle EPUB
-Fetch emails from a Gmail label and export as EPUB:
+Fetch emails from a Gmail label and export as EPUB. Manual only — no
+workflow runs this on a schedule; the Substack API path replaced it, but
+the command remains for non-Substack newsletters:
 ```bash
 uv run unhook gmail-to-kindle                        # fetch from "newsletters-kindle" label
 uv run unhook gmail-to-kindle --label newsletters    # custom Gmail label
@@ -187,7 +189,6 @@ uv run tox -e pre-commit
   - `test.yml`: Runs tests and pre-commit on push/PR to main (Ubuntu + Windows, Python 3.12)
   - `integration.yml`: Manual dispatch for Bluesky integration test with EPUB export
   - `kindle.yml`: Weekly Bluesky EPUB to Kindle (Saturday 18:00 UTC)
-  - `gmail-kindle.yml`: Twice-weekly Gmail newsletter EPUB to Kindle (Mon/Thu 18:00 UTC)
   - `substack-kindle.yml`: Daily Substack API EPUB to Kindle (18:00 UTC; reads the `SUBSTACK_PUBLICATIONS` repository variable and optional `SUBSTACK_SID` secret). `SINCE_DAYS` must match the schedule — the pipeline keeps no record of what it already sent, so a wider window re-sends posts
 - `.env`: Credentials (not committed to git)
 - Minimum Python version: 3.12

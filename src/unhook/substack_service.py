@@ -52,10 +52,12 @@ USER_AGENT = "Mozilla/5.0 (compatible; unhook)"
 SID_COOKIE_NAME = "substack.sid"
 SUBSTACK_HOME = "https://substack.com"
 
-# ``membership_state`` value marking a paid-tier membership.  Free list
-# members are ``free_signup``; comped members are also ``subscribed`` but
-# carry ``type: comp``.
-_PAID_MEMBERSHIP_STATE = "subscribed"
+# ``membership_state`` value marking paid-tier access.  Free list members
+# are ``free_signup``.  Note that ``subscribed`` means "has paid-tier
+# access", not "is paying": comped accounts carry ``type: comp``, and gift
+# or trial memberships also report ``subscribed``.
+_PAID_TIER_MEMBERSHIP_STATE = "subscribed"
+_COMPED_SUBSCRIPTION_TYPE = "comp"
 
 
 @dataclass
@@ -69,9 +71,20 @@ class Subscription:
     subscription_type: str = ""
 
     @property
-    def is_paid(self) -> bool:
-        """Whether this is a paid-tier membership (possibly comped)."""
-        return self.membership_state == _PAID_MEMBERSHIP_STATE
+    def has_paid_tier_access(self) -> bool:
+        """Whether subscriber-only posts are readable with this membership.
+
+        True for paying, comped, gifted, and trial memberships alike — the
+        API returns ``body_html`` for subscriber-only posts in all of these
+        cases, which is what matters to the digest.  Use ``is_comped`` to
+        tell granted access apart from a paid one.
+        """
+        return self.membership_state == _PAID_TIER_MEMBERSHIP_STATE
+
+    @property
+    def is_comped(self) -> bool:
+        """Whether paid-tier access was comped rather than purchased."""
+        return self.subscription_type == _COMPED_SUBSCRIPTION_TYPE
 
 
 def normalize_handle(value: str) -> str:

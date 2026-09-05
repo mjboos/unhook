@@ -96,8 +96,11 @@ Two endpoints answer "what do I subscribe to?", both verified 2026-09-05:
 - `GET https://substack.com/api/v1/user/<handle>/public_profile` —
   unauthenticated. Returns a `subscriptions` array with an embedded
   `publication` (name, `subdomain`, `custom_domain`) plus `visibility`,
-  `membership_state` (`subscribed` = paid tier, `free_signup` = free list)
-  and `type` (`comp` for comped). **Only publicly visible subscriptions
+  `membership_state` and `type`. Note `membership_state: subscribed` means
+  "has paid-tier access", **not** "is paying" — comped memberships
+  (`type: comp`), gifts and trials all report `subscribed`, so it should
+  never be presented to the user as evidence of a paid subscription.
+  `free_signup` marks a free list member. **Only publicly visible subscriptions
   appear** — anything hidden from the profile is absent entirely, and a
   `subscriptionsTruncated` flag marks a clipped list. Note the endpoint
   works by handle, not numeric user id (the id form returns an error).

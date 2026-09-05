@@ -333,8 +333,33 @@ class TestListSubscriptions:
         assert "2 subscription(s)." in result.output
         assert "thezvi.substack.com, www.astralcodexten.com" in result.output
 
-    def test_paid_only_filter(self, runner: CliRunner):
-        """It filters out free subscriptions with --paid-only."""
+    def test_comped_access_labelled_distinctly(self, runner: CliRunner):
+        """It labels comped access 'comp' rather than 'paid'."""
+        from unhook.substack_service import (
+            Subscription,
+            format_publications_value,
+        )
+
+        subscriptions = [
+            Subscription(
+                name="Comped Pub",
+                base_url="https://comped.substack.com",
+                membership_state="subscribed",
+                subscription_type="comp",
+            ),
+        ]
+        mock_module = MagicMock(
+            list_subscriptions=AsyncMock(return_value=subscriptions),
+            format_publications_value=format_publications_value,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            result = runner.invoke(app, ["list-subscriptions", "--handle", "someone"])
+
+        assert result.exit_code == 0
+        assert "comp " in result.output
+
+    def test_paid_tier_only_filter(self, runner: CliRunner):
+        """It filters out free subscriptions with --paid-tier-only."""
         from unhook.substack_service import (
             Subscription,
             format_publications_value,
@@ -358,7 +383,7 @@ class TestListSubscriptions:
         )
         with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
             result = runner.invoke(
-                app, ["list-subscriptions", "--handle", "someone", "--paid-only"]
+                app, ["list-subscriptions", "--handle", "someone", "--paid-tier-only"]
             )
 
         assert result.exit_code == 0

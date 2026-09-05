@@ -87,12 +87,16 @@ Discover subscriptions to build the `SUBSTACK_PUBLICATIONS` value:
 ```bash
 uv run unhook list-subscriptions --handle @yourhandle   # public subscriptions only
 SUBSTACK_SID=... uv run unhook list-subscriptions       # full list, including hidden
-uv run unhook list-subscriptions --handle @you --paid-only
+uv run unhook list-subscriptions --handle @you --paid-tier-only
 ```
 Prints each subscription with its tier plus a ready-to-paste
 `SUBSTACK_PUBLICATIONS` value. The authenticated path is preferred when
 `SUBSTACK_SID` is set, since the public profile omits subscriptions hidden
 from the profile.
+
+The tier column reports whether subscriber-only posts are readable, not
+whether money changed hands: `paid` for paid-tier access, `comp` when that
+access was comped, and `free` for free list members.
 
 ### Testing
 Run all tests with coverage:

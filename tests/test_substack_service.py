@@ -598,7 +598,7 @@ class TestParseSubscriptions:
         assert len(result) == 1
         assert result[0].name == "Example Publication"
         assert result[0].base_url == "https://example.substack.com"
-        assert result[0].is_paid is True
+        assert result[0].has_paid_tier_access is True
 
     def test_bare_list_shape(self):
         """It parses a bare list of subscriptions."""
@@ -623,7 +623,25 @@ class TestParseSubscriptions:
         payload = {
             "subscriptions": [make_subscription_json(membership_state="free_signup")]
         }
-        assert _parse_subscriptions(payload)[0].is_paid is False
+        assert _parse_subscriptions(payload)[0].has_paid_tier_access is False
+
+    def test_comped_membership_flagged(self):
+        """It distinguishes comped access from a purchased membership."""
+        payload = {
+            "subscriptions": [
+                make_subscription_json(membership_state="subscribed", sub_type="comp")
+            ]
+        }
+        subscription = _parse_subscriptions(payload)[0]
+        assert subscription.has_paid_tier_access is True
+        assert subscription.is_comped is True
+
+    def test_purchased_membership_not_comped(self):
+        """It does not flag a plain paid membership as comped."""
+        payload = {"subscriptions": [make_subscription_json(sub_type=None)]}
+        subscription = _parse_subscriptions(payload)[0]
+        assert subscription.has_paid_tier_access is True
+        assert subscription.is_comped is False
 
     def test_deduplicates_by_base_url(self):
         """It drops duplicate publications."""

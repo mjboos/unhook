@@ -226,12 +226,20 @@ def list_subscriptions(
             "full list, including subscriptions hidden from your profile"
         ),
     ),
-    paid_only: bool = typer.Option(False, help="Only list paid-tier subscriptions"),
+    paid_tier_only: bool = typer.Option(
+        False,
+        "--paid-tier-only",
+        help="Only list memberships with subscriber-only access",
+    ),
 ) -> None:
     """List your Substack subscriptions to build SUBSTACK_PUBLICATIONS.
 
     With SUBSTACK_SID set this reads your full subscription list. With only
     a handle it reads the publicly visible subscriptions from that profile.
+
+    The tier column reports whether subscriber-only posts are readable:
+    ``paid`` for paid-tier access, ``comp`` when that access was comped
+    rather than purchased, and ``free`` for free list members.
     """
     from unhook.substack_service import format_publications_value
     from unhook.substack_service import list_subscriptions as fetch_subscriptions
@@ -245,15 +253,18 @@ def list_subscriptions(
 
     subscriptions = asyncio.run(fetch_subscriptions(handle=handle, sid=substack_sid))
 
-    if paid_only:
-        subscriptions = [sub for sub in subscriptions if sub.is_paid]
+    if paid_tier_only:
+        subscriptions = [sub for sub in subscriptions if sub.has_paid_tier_access]
 
     if not subscriptions:
         typer.echo("No subscriptions found.", err=True)
         raise typer.Exit(0)
 
     for subscription in subscriptions:
-        tier = "paid" if subscription.is_paid else "free"
+        if subscription.has_paid_tier_access:
+            tier = "comp" if subscription.is_comped else "paid"
+        else:
+            tier = "free"
         host = subscription.base_url.removeprefix("https://")
         typer.echo(f"  {tier:5}  {subscription.name:<34.34}  {host}")
 

@@ -89,6 +89,33 @@ JSON endpoint ever disappears, fallbacks exist: the article HTML page embeds
 the same post JSON in `window._preloads`, and free posts are available via
 each publication's RSS `/feed`.
 
+### Discovering which publications to follow
+
+Two endpoints answer "what do I subscribe to?", both verified 2026-09-05:
+
+- `GET https://substack.com/api/v1/user/<handle>/public_profile` —
+  unauthenticated. Returns a `subscriptions` array with an embedded
+  `publication` (name, `subdomain`, `custom_domain`) plus `visibility`,
+  `membership_state` (`subscribed` = paid tier, `free_signup` = free list)
+  and `type` (`comp` for comped). **Only publicly visible subscriptions
+  appear** — anything hidden from the profile is absent entirely, and a
+  `subscriptionsTruncated` flag marks a clipped list. Note the endpoint
+  works by handle, not numeric user id (the id form returns an error).
+- `GET https://substack.com/api/v1/subscriptions` — requires the
+  `substack.sid` cookie (HTTP 401 with `{"errors":[{"msg":"Please sign
+  in"}]}` otherwise). Returns the complete list including hidden ones.
+
+`unhook list-subscriptions` wraps both: it prefers the authenticated
+endpoint when `SUBSTACK_SID` is set, falls back to the public profile, and
+prints a ready-to-paste `SUBSTACK_PUBLICATIONS` value. The authenticated
+response shape is parsed defensively (embedded `publication`, or
+`publication_id` resolved against a sibling `publications` array) since it
+could not be verified without a live cookie.
+
+Keeping the cookie out of chat matters: it is a session credential, so it
+belongs in `.env` / a GitHub secret that the command reads from the
+environment, never pasted into a conversation or a commit.
+
 ### URL normalization
 
 Shared Substack links come in several shapes that must be resolved to

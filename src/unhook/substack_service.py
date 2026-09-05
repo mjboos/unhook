@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import ssl
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -49,6 +50,175 @@ ARCHIVE_LIMIT = 50
 REQUEST_TIMEOUT = 30.0
 USER_AGENT = "Mozilla/5.0 (compatible; unhook)"
 SID_COOKIE_NAME = "substack.sid"
+SUBSTACK_HOME = "https://substack.com"
+
+# ``membership_state`` value marking a paid-tier membership.  Free list
+# members are ``free_signup``; comped members are also ``subscribed`` but
+# carry ``type: comp``.
+_PAID_MEMBERSHIP_STATE = "subscribed"
+
+
+@dataclass
+class Subscription:
+    """A publication the account subscribes to."""
+
+    name: str
+    base_url: str
+    membership_state: str = ""
+    visibility: str = ""
+    subscription_type: str = ""
+
+    @property
+    def is_paid(self) -> bool:
+        """Whether this is a paid-tier membership (possibly comped)."""
+        return self.membership_state == _PAID_MEMBERSHIP_STATE
+
+
+def normalize_handle(value: str) -> str:
+    """Extract a Substack handle from a handle, @handle, or profile URL.
+
+    Accepts ``moritzboos``, ``@moritzboos``,
+    ``https://substack.com/@moritzboos``, and profile sub-pages such as
+    ``https://substack.com/@moritzboos/notes``.
+    """
+    handle = value.strip()
+    if "://" in handle:
+        handle = handle.split("://", 1)[1]
+    parts = [part for part in handle.split("/") if part]
+    # Drop the host segment when a full URL was given.
+    if parts and "." in parts[0]:
+        parts = parts[1:]
+    for part in parts:
+        if part.startswith("@"):
+            return part[1:]
+    if parts:
+        return parts[0].lstrip("@")
+    return handle.lstrip("@")
+
+
+def publication_base_url(publication: dict) -> str | None:
+    """Derive a publication's base URL from its JSON, preferring custom domains."""
+    custom_domain = (publication.get("custom_domain") or "").strip()
+    if custom_domain:
+        return f"https://{custom_domain}"
+    subdomain = (publication.get("subdomain") or "").strip()
+    if subdomain:
+        return f"https://{subdomain}.substack.com"
+    return None
+
+
+def _parse_subscriptions(payload: object) -> list[Subscription]:
+    """Map a subscriptions payload onto ``Subscription`` objects.
+
+    Handles both response shapes: a bare list of subscriptions with an
+    embedded ``publication`` (the public-profile shape), and an object with
+    ``subscriptions`` plus a sibling ``publications`` array referenced by
+    ``publication_id`` (the authenticated shape).
+    """
+    publications_by_id: dict[object, dict] = {}
+    if isinstance(payload, dict):
+        raw_subscriptions = payload.get("subscriptions") or []
+        for publication in payload.get("publications") or []:
+            if publication.get("id") is not None:
+                publications_by_id[publication["id"]] = publication
+    elif isinstance(payload, list):
+        raw_subscriptions = payload
+    else:
+        return []
+
+    subscriptions: list[Subscription] = []
+    seen: set[str] = set()
+    for raw in raw_subscriptions:
+        if not isinstance(raw, dict):
+            continue
+        publication = raw.get("publication")
+        if not isinstance(publication, dict):
+            publication = publications_by_id.get(raw.get("publication_id"))
+        if not isinstance(publication, dict):
+            continue
+        base_url = publication_base_url(publication)
+        if not base_url or base_url in seen:
+            continue
+        seen.add(base_url)
+        subscriptions.append(
+            Subscription(
+                name=(publication.get("name") or "").strip() or base_url,
+                base_url=base_url,
+                membership_state=raw.get("membership_state") or "",
+                visibility=raw.get("visibility") or "",
+                subscription_type=raw.get("type") or "",
+            )
+        )
+    return subscriptions
+
+
+async def fetch_public_subscriptions(
+    client: httpx.AsyncClient, handle: str
+) -> list[Subscription]:
+    """Fetch publicly visible subscriptions from a profile.
+
+    Only subscriptions the account has chosen to show publicly are
+    returned; hidden ones are absent from the response entirely.
+    """
+    handle = normalize_handle(handle)
+    response = await client.get(f"{SUBSTACK_HOME}/api/v1/user/{handle}/public_profile")
+    response.raise_for_status()
+    payload = response.json()
+    if isinstance(payload, dict) and payload.get("subscriptionsTruncated"):
+        logger.warning(
+            "Substack truncated the public subscription list for '%s'; "
+            "some subscriptions may be missing",
+            handle,
+        )
+    return _parse_subscriptions(payload)
+
+
+async def fetch_authenticated_subscriptions(
+    client: httpx.AsyncClient,
+) -> list[Subscription]:
+    """Fetch the signed-in account's full subscription list.
+
+    Requires a valid ``substack.sid`` cookie on the client; the endpoint
+    returns HTTP 401 otherwise.  Unlike the public profile, this includes
+    subscriptions hidden from the public profile.
+    """
+    response = await client.get(f"{SUBSTACK_HOME}/api/v1/subscriptions")
+    response.raise_for_status()
+    return _parse_subscriptions(response.json())
+
+
+async def list_subscriptions(
+    handle: str | None = None, sid: str | None = None
+) -> list[Subscription]:
+    """List subscriptions via the authenticated API or a public profile.
+
+    Prefers the authenticated endpoint when a ``substack.sid`` cookie is
+    available, since it also returns subscriptions hidden from the public
+    profile.  Falls back to the public profile when only a handle is given.
+    """
+    if not sid and not handle:
+        raise ValueError("Either a handle or a substack.sid cookie is required")
+
+    async with _make_client(sid) as client:
+        if sid:
+            try:
+                return await fetch_authenticated_subscriptions(client)
+            except Exception as exc:  # noqa: BLE001
+                if not handle:
+                    raise
+                logger.warning(
+                    "Authenticated subscription lookup failed (%s); "
+                    "falling back to the public profile",
+                    exc,
+                )
+        return await fetch_public_subscriptions(client, handle or "")
+
+
+def format_publications_value(subscriptions: list[Subscription]) -> str:
+    """Render subscriptions as a SUBSTACK_PUBLICATIONS variable value."""
+    return ", ".join(
+        subscription.base_url.removeprefix("https://") for subscription in subscriptions
+    )
 
 
 def normalize_publication_url(publication: str) -> str:
@@ -281,8 +451,15 @@ async def export_substack_to_epub(
 
 
 __all__ = [
+    "Subscription",
     "export_substack_to_epub",
+    "fetch_authenticated_subscriptions",
     "fetch_post",
+    "fetch_public_subscriptions",
+    "format_publications_value",
+    "list_subscriptions",
+    "normalize_handle",
+    "publication_base_url",
     "fetch_publication_contents",
     "fetch_recent_post_slugs",
     "normalize_publication_url",

@@ -82,6 +82,18 @@ Set `SUBSTACK_PUBLICATIONS` (comma-separated list) and optionally
 `SUBSTACK_SID` (the `substack.sid` browser cookie, to include paywalled
 posts from subscribed publications) instead of passing options.
 
+### Listing Substack Subscriptions
+Discover subscriptions to build the `SUBSTACK_PUBLICATIONS` value:
+```bash
+uv run unhook list-subscriptions --handle @yourhandle   # public subscriptions only
+SUBSTACK_SID=... uv run unhook list-subscriptions       # full list, including hidden
+uv run unhook list-subscriptions --handle @you --paid-only
+```
+Prints each subscription with its tier plus a ready-to-paste
+`SUBSTACK_PUBLICATIONS` value. The authenticated path is preferred when
+`SUBSTACK_SID` is set, since the public profile omits subscriptions hidden
+from the profile.
+
 ### Testing
 Run all tests with coverage:
 ```bash
@@ -149,6 +161,7 @@ uv run tox -e pre-commit
   - `export-epub`: Fetch posts and export as EPUB with images
   - `gmail-to-kindle`: Fetch Gmail emails by label and export as EPUB
   - `substack-to-kindle`: Fetch Substack posts via JSON API and export as EPUB
+  - `list-subscriptions`: List Substack subscriptions to build `SUBSTACK_PUBLICATIONS`
 
 ### Project Structure
 - `src/unhook/`: Main source code
@@ -161,7 +174,7 @@ uv run tox -e pre-commit
   - `gmail_service.py`: Gmail IMAP client for fetching emails by label
   - `email_content.py`: Email content parsing (HTML/text bodies, inline images, external image extraction)
   - `gmail_epub_service.py`: Gmail-to-EPUB pipeline (HTML sanitization, boilerplate stripping, image handling, EPUB building)
-  - `substack_service.py`: Substack JSON API client (archive + post fetching, paywall detection) reusing the email EPUB pipeline
+  - `substack_service.py`: Substack JSON API client (archive + post fetching, paywall detection, subscription discovery) reusing the email EPUB pipeline
 - `tests/`: Test files mirroring source structure
   - `conftest.py`: Shared fixtures (`make_post`, `make_repost`, `make_post_mock`, `mock_env_vars`, etc.)
 - `docs/`: Documentation

@@ -212,5 +212,55 @@ def substack_to_kindle(
         raise typer.Exit(0)
 
 
+@app.command()
+def list_subscriptions(
+    handle: str = typer.Option(
+        None,
+        help="Substack handle or profile URL (public subscriptions only)",
+    ),
+    substack_sid: str = typer.Option(
+        None,
+        envvar="SUBSTACK_SID",
+        help=(
+            "substack.sid session cookie (or set SUBSTACK_SID). Returns the "
+            "full list, including subscriptions hidden from your profile"
+        ),
+    ),
+    paid_only: bool = typer.Option(False, help="Only list paid-tier subscriptions"),
+) -> None:
+    """List your Substack subscriptions to build SUBSTACK_PUBLICATIONS.
+
+    With SUBSTACK_SID set this reads your full subscription list. With only
+    a handle it reads the publicly visible subscriptions from that profile.
+    """
+    from unhook.substack_service import format_publications_value
+    from unhook.substack_service import list_subscriptions as fetch_subscriptions
+
+    if not handle and not substack_sid:
+        typer.echo(
+            "Error: pass --handle, or set SUBSTACK_SID for the full list",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    subscriptions = asyncio.run(fetch_subscriptions(handle=handle, sid=substack_sid))
+
+    if paid_only:
+        subscriptions = [sub for sub in subscriptions if sub.is_paid]
+
+    if not subscriptions:
+        typer.echo("No subscriptions found.", err=True)
+        raise typer.Exit(0)
+
+    for subscription in subscriptions:
+        tier = "paid" if subscription.is_paid else "free"
+        host = subscription.base_url.removeprefix("https://")
+        typer.echo(f"  {tier:5}  {subscription.name:<34.34}  {host}")
+
+    typer.echo(f"\n{len(subscriptions)} subscription(s).")
+    typer.echo("\nSUBSTACK_PUBLICATIONS value:")
+    typer.echo(format_publications_value(subscriptions))
+
+
 if __name__ == "__main__":
     app()  # pragma: no cover

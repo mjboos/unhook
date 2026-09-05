@@ -1,47 +1,62 @@
-name: Gmail to Kindle
+name: Substack to Kindle
 
 on:
   schedule:
-    - cron: "0 18 * * 1,4" # Monday & Thursday at 18:00 UTC (evening CET)
+    - cron: "0 18 * * *" # Daily at 18:00 UTC (evening CET)
   workflow_dispatch:
     inputs:
       since_days:
         description: "Days of history to include"
         required: false
-        default: "4"
-      label:
-        description: "Gmail label to fetch"
+        default: "1"
+      publications:
+        description: "Comma-separated publications (overrides repo variable)"
         required: false
-        default: "newsletters"
+        default: ""
 
 jobs:
   fetch-and-send:
     runs-on: ubuntu-latest
     env:
-      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
-      GAPPPWD: ${{ secrets.GAPPPWD }}
-      SINCE_DAYS: ${{ inputs.since_days || '4' }}
-      LABEL: ${{ inputs.label || 'newsletters' }}
+      SUBSTACK_PUBLICATIONS: ${{ inputs.publications || vars.SUBSTACK_PUBLICATIONS }}
+      SUBSTACK_SID: ${{ secrets.SUBSTACK_SID }}
+      # The window must match the schedule: the pipeline keeps no record of
+      # what it already sent, so a window wider than the gap between runs
+      # re-sends the same posts in consecutive digests.
+      SINCE_DAYS: ${{ inputs.since_days || '1' }}
     steps:
+      - name: Check publications configured
+        id: config
+        run: |
+          if [ -z "$SUBSTACK_PUBLICATIONS" ]; then
+            echo "No publications configured. Set the SUBSTACK_PUBLICATIONS repository variable."
+            echo "configured=false" >> $GITHUB_OUTPUT
+          else
+            echo "configured=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout
+        if: steps.config.outputs.configured == 'true'
         uses: actions/checkout@v4
 
       - name: Install uv
+        if: steps.config.outputs.configured == 'true'
         uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
 
       - name: Install dependencies
+        if: steps.config.outputs.configured == 'true'
         run: uv sync
 
-      - name: Fetch Gmail and export EPUB
+      - name: Fetch Substack posts and export EPUB
+        if: steps.config.outputs.configured == 'true'
         id: export
         run: |
-          uv run python -m unhook.cmd gmail-to-kindle \
+          uv run python -m unhook.cmd substack-to-kindle \
             --since-days "$SINCE_DAYS" \
-            --label "$LABEL" \
             --output-dir "exports" \
-            --file-prefix "newsletters"
+            --file-prefix "substack"
 
           # Check if any EPUB was created
           if ls exports/*.epub 1> /dev/null 2>&1; then
@@ -93,12 +108,12 @@ jobs:
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.GAPPPWD }}
           secure: false
-          subject: "Newsletter digest"
+          subject: "Substack digest"
           to: ${{ secrets.AMAZON_KINDLE_ADDRESS }}
           from: "Github actions <${{ secrets.SMTP_USERNAME }}>"
-          body: "Automated newsletter EPUB export."
+          body: "Automated Substack EPUB export."
           attachments: "exports/*.epub"
 
-      - name: Log no emails found
-        if: steps.export.outputs.epub_created == 'false'
-        run: echo "No emails found matching criteria. Skipping send."
+      - name: Log no posts found
+        if: steps.config.outputs.configured == 'true' && steps.export.outputs.epub_created == 'false'
+        run: echo "No posts found matching criteria. Skipping send."

@@ -98,9 +98,11 @@ Go to **Settings → Secrets and variables → Actions → New repository secret
 - **`test.yml`** (push/PR to `main`): Runs tests and pre-commit checks on CI. No secrets required.
 - **`integration.yml`** (manual only): Fetches Bluesky posts and exports an EPUB for smoke testing. Requires `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD`.
 - **`kindle.yml`** (scheduled + manual): On Monday and Thursday at 18:00 UTC, fetches Bluesky posts, builds an EPUB, and emails it to your Kindle. Requires all Bluesky + Gmail/Kindle secrets.
-- **`gmail-kindle.yml`** (scheduled + manual): On Monday and Thursday at 18:00 UTC, fetches Gmail newsletters by label, builds an EPUB, and emails it to your Kindle. Requires `SMTP_USERNAME`, `GAPPPWD`, `AMAZON_KINDLE_ADDRESS`.
+- **`substack-kindle.yml`** (scheduled + manual): Daily at 18:00 UTC, fetches recent posts from the Substack publications listed in the `SUBSTACK_PUBLICATIONS` repository variable, builds an EPUB, and emails it to your Kindle. Requires `SMTP_USERNAME`, `GAPPPWD`, `AMAZON_KINDLE_ADDRESS`; set the optional `SUBSTACK_SID` secret to include subscriber-only posts you have access to.
 
-Both `kindle.yml` and `gmail-kindle.yml` also support manual runs via **Run workflow** with custom inputs (for example `since_days`, `limit`, or `label`).
+Both `kindle.yml` and `substack-kindle.yml` also support manual runs via **Run workflow** with custom inputs (for example `since_days` or `publications`).
+
+Newsletters can also be pulled from a Gmail label with `unhook gmail-to-kindle`, but no workflow runs it on a schedule — the Substack API path replaced it.
 
 ## Development
 

@@ -217,3 +217,205 @@ class TestGmailToKindle:
 
             assert result.exit_code == 0
             assert "No emails found" in result.output
+
+
+class TestSubstackToKindle:
+    """Tests for the substack-to-kindle CLI command."""
+
+    def test_missing_publications(self, runner: CliRunner):
+        """It exits with error when no publications are provided."""
+        result = runner.invoke(app, ["substack-to-kindle"])
+        assert result.exit_code == 1
+        assert "publications required" in result.output
+
+    def test_successful_export(self, runner: CliRunner, tmp_path):
+        """It exports posts to EPUB successfully."""
+        from unhook.substack_service import parse_publications
+
+        mock_export = AsyncMock(return_value=tmp_path / "substack.epub")
+        mock_module = MagicMock(
+            export_substack_to_epub=mock_export,
+            parse_publications=parse_publications,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            with runner.isolated_filesystem(temp_dir=tmp_path):
+                result = runner.invoke(
+                    app,
+                    ["substack-to-kindle", "--publications", "thezvi"],
+                )
+
+            assert result.exit_code == 0
+            assert "Saved EPUB" in result.output
+        mock_export.assert_awaited_once()
+        assert mock_export.await_args.kwargs["publications"] == [
+            "https://thezvi.substack.com"
+        ]
+
+    def test_no_posts_found(self, runner: CliRunner, tmp_path):
+        """It reports when no posts match criteria."""
+        from unhook.substack_service import parse_publications
+
+        mock_export = AsyncMock(return_value=None)
+        mock_module = MagicMock(
+            export_substack_to_epub=mock_export,
+            parse_publications=parse_publications,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            with runner.isolated_filesystem(temp_dir=tmp_path):
+                result = runner.invoke(
+                    app,
+                    ["substack-to-kindle", "--publications", "thezvi"],
+                )
+
+            assert result.exit_code == 0
+            assert "No posts found" in result.output
+
+    def test_publications_from_env(self, runner: CliRunner, tmp_path, monkeypatch):
+        """It reads the publication list from SUBSTACK_PUBLICATIONS."""
+        from unhook.substack_service import parse_publications
+
+        monkeypatch.setenv("SUBSTACK_PUBLICATIONS", "thezvi, astralcodexten")
+        mock_export = AsyncMock(return_value=tmp_path / "substack.epub")
+        mock_module = MagicMock(
+            export_substack_to_epub=mock_export,
+            parse_publications=parse_publications,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            with runner.isolated_filesystem(temp_dir=tmp_path):
+                result = runner.invoke(app, ["substack-to-kindle"])
+
+            assert result.exit_code == 0
+        assert mock_export.await_args.kwargs["publications"] == [
+            "https://thezvi.substack.com",
+            "https://astralcodexten.substack.com",
+        ]
+
+
+class TestListSubscriptions:
+    """Tests for the list-subscriptions CLI command."""
+
+    def test_missing_handle_and_sid(self, runner: CliRunner):
+        """It exits with error when given neither a handle nor a cookie."""
+        result = runner.invoke(app, ["list-subscriptions"])
+        assert result.exit_code == 1
+        assert "--handle" in result.output
+
+    def test_lists_subscriptions(self, runner: CliRunner):
+        """It prints subscriptions and a ready-to-paste variable value."""
+        from unhook.substack_service import (
+            Subscription,
+            format_publications_value,
+        )
+
+        subscriptions = [
+            Subscription(
+                name="Don't Worry About the Vase",
+                base_url="https://thezvi.substack.com",
+                membership_state="subscribed",
+            ),
+            Subscription(
+                name="Astral Codex Ten",
+                base_url="https://www.astralcodexten.com",
+                membership_state="free_signup",
+            ),
+        ]
+        mock_module = MagicMock(
+            list_subscriptions=AsyncMock(return_value=subscriptions),
+            format_publications_value=format_publications_value,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            result = runner.invoke(app, ["list-subscriptions", "--handle", "someone"])
+
+        assert result.exit_code == 0
+        assert "Don't Worry About the Vase" in result.output
+        assert "paid" in result.output
+        assert "free" in result.output
+        assert "2 subscription(s)." in result.output
+        assert "thezvi.substack.com, www.astralcodexten.com" in result.output
+
+    def test_comped_access_labelled_distinctly(self, runner: CliRunner):
+        """It labels comped access 'comp' rather than 'paid'."""
+        from unhook.substack_service import (
+            Subscription,
+            format_publications_value,
+        )
+
+        subscriptions = [
+            Subscription(
+                name="Comped Pub",
+                base_url="https://comped.substack.com",
+                membership_state="subscribed",
+                subscription_type="comp",
+            ),
+        ]
+        mock_module = MagicMock(
+            list_subscriptions=AsyncMock(return_value=subscriptions),
+            format_publications_value=format_publications_value,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            result = runner.invoke(app, ["list-subscriptions", "--handle", "someone"])
+
+        assert result.exit_code == 0
+        assert "comp " in result.output
+
+    def test_paid_tier_only_filter(self, runner: CliRunner):
+        """It filters out free subscriptions with --paid-tier-only."""
+        from unhook.substack_service import (
+            Subscription,
+            format_publications_value,
+        )
+
+        subscriptions = [
+            Subscription(
+                name="Paid Pub",
+                base_url="https://paid.substack.com",
+                membership_state="subscribed",
+            ),
+            Subscription(
+                name="Free Pub",
+                base_url="https://free.substack.com",
+                membership_state="free_signup",
+            ),
+        ]
+        mock_module = MagicMock(
+            list_subscriptions=AsyncMock(return_value=subscriptions),
+            format_publications_value=format_publications_value,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            result = runner.invoke(
+                app, ["list-subscriptions", "--handle", "someone", "--paid-tier-only"]
+            )
+
+        assert result.exit_code == 0
+        assert "Paid Pub" in result.output
+        assert "Free Pub" not in result.output
+        assert "1 subscription(s)." in result.output
+
+    def test_no_subscriptions(self, runner: CliRunner):
+        """It reports when no subscriptions are found."""
+        from unhook.substack_service import format_publications_value
+
+        mock_module = MagicMock(
+            list_subscriptions=AsyncMock(return_value=[]),
+            format_publications_value=format_publications_value,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            result = runner.invoke(app, ["list-subscriptions", "--handle", "someone"])
+
+        assert result.exit_code == 0
+        assert "No subscriptions found" in result.output
+
+    def test_sid_from_env(self, runner: CliRunner, monkeypatch):
+        """It reads the session cookie from SUBSTACK_SID."""
+        from unhook.substack_service import format_publications_value
+
+        monkeypatch.setenv("SUBSTACK_SID", "env-cookie")
+        mock_list = AsyncMock(return_value=[])
+        mock_module = MagicMock(
+            list_subscriptions=mock_list,
+            format_publications_value=format_publications_value,
+        )
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            runner.invoke(app, ["list-subscriptions"])
+
+        assert mock_list.await_args.kwargs["sid"] == "env-cookie"

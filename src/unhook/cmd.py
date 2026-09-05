@@ -156,5 +156,122 @@ def gmail_to_kindle(
         raise typer.Exit(0)
 
 
+@app.command()
+def substack_to_kindle(
+    publications: str = typer.Option(
+        None,
+        envvar="SUBSTACK_PUBLICATIONS",
+        help=(
+            "Comma-separated publications to fetch: subdomain (thezvi), "
+            "domain (www.astralcodexten.com), or full URL"
+        ),
+    ),
+    output_dir: Path = typer.Option(Path("exports"), help="Directory to save EPUBs"),
+    since_days: int = typer.Option(4, help="Only include posts from the last N days"),
+    file_prefix: str = typer.Option("substack", help="Filename prefix for the EPUB"),
+    substack_sid: str = typer.Option(
+        None,
+        envvar="SUBSTACK_SID",
+        help="substack.sid session cookie to unlock paywalled posts (optional)",
+    ),
+) -> None:
+    """Fetch recent posts from Substack publications and export as EPUB.
+
+    Uses Substack's JSON API directly instead of newsletter emails.
+    Set SUBSTACK_PUBLICATIONS to a comma-separated list of publications,
+    and optionally SUBSTACK_SID to include paywalled posts you subscribe to.
+    """
+    from unhook.substack_service import export_substack_to_epub, parse_publications
+
+    if not publications:
+        typer.echo(
+            "Error: publications required. Set SUBSTACK_PUBLICATIONS env var",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    publication_urls = parse_publications(publications)
+    if not publication_urls:
+        typer.echo("Error: no valid publications in list", err=True)
+        raise typer.Exit(1)
+
+    output_path = asyncio.run(
+        export_substack_to_epub(
+            publications=publication_urls,
+            output_dir=output_dir,
+            since_days=since_days,
+            file_prefix=file_prefix,
+            sid=substack_sid,
+        )
+    )
+
+    if output_path:
+        typer.echo(f"Saved EPUB to {output_path}")
+    else:
+        typer.echo("No posts found matching criteria. Skipping.", err=True)
+        raise typer.Exit(0)
+
+
+@app.command()
+def list_subscriptions(
+    handle: str = typer.Option(
+        None,
+        help="Substack handle or profile URL (public subscriptions only)",
+    ),
+    substack_sid: str = typer.Option(
+        None,
+        envvar="SUBSTACK_SID",
+        help=(
+            "substack.sid session cookie (or set SUBSTACK_SID). Returns the "
+            "full list, including subscriptions hidden from your profile"
+        ),
+    ),
+    paid_tier_only: bool = typer.Option(
+        False,
+        "--paid-tier-only",
+        help="Only list memberships with subscriber-only access",
+    ),
+) -> None:
+    """List your Substack subscriptions to build SUBSTACK_PUBLICATIONS.
+
+    With SUBSTACK_SID set this reads your full subscription list. With only
+    a handle it reads the publicly visible subscriptions from that profile.
+
+    The tier column reports whether subscriber-only posts are readable:
+    ``paid`` for paid-tier access, ``comp`` when that access was comped
+    rather than purchased, and ``free`` for free list members.
+    """
+    from unhook.substack_service import format_publications_value
+    from unhook.substack_service import list_subscriptions as fetch_subscriptions
+
+    if not handle and not substack_sid:
+        typer.echo(
+            "Error: pass --handle, or set SUBSTACK_SID for the full list",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    subscriptions = asyncio.run(fetch_subscriptions(handle=handle, sid=substack_sid))
+
+    if paid_tier_only:
+        subscriptions = [sub for sub in subscriptions if sub.has_paid_tier_access]
+
+    if not subscriptions:
+        typer.echo("No subscriptions found.", err=True)
+        raise typer.Exit(0)
+
+    for subscription in subscriptions:
+        if subscription.has_paid_tier_access:
+            tier = "comp" if subscription.is_comped else "paid"
+        else:
+            tier = "free"
+        host = subscription.base_url.removeprefix("https://")
+        typer.echo(f"  {tier:5}  {subscription.name:<34.34}  {host}")
+
+    typer.echo(f"\n{len(subscriptions)} subscription(s).")
+    typer.echo("\nSUBSTACK_PUBLICATIONS value:")
+    typer.echo(format_publications_value(subscriptions))
+
+
 if __name__ == "__main__":
     app()  # pragma: no cover

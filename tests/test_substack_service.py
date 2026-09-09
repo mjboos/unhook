@@ -380,7 +380,7 @@ FEED_XML = """<?xml version="1.0" encoding="UTF-8"?>
       <title>Recent Post</title>
       <link>https://example.substack.com/p/recent</link>
       <pubDate>{recent}</pubDate>
-      <content:encoded>&lt;p&gt;Hello from RSS&lt;/p&gt;</content:encoded>
+      <content:encoded>{body}</content:encoded>
     </item>
     <item>
       <title>Ancient Post</title>
@@ -392,11 +392,20 @@ FEED_XML = """<?xml version="1.0" encoding="UTF-8"?>
 </rss>
 """
 
+# Long enough to clear RSS_TRUNCATED_TEXT_LIMIT, as a real post would be.
+FULL_BODY = "&lt;p&gt;Hello from RSS. " + ("Body text. " * 40) + "&lt;/p&gt;"
 
-def recent_feed_xml() -> str:
+# Substack's stand-in for a subscriber-only post: a bare "Read more" link.
+TEASER_BODY = (
+    "&lt;p&gt;&lt;a href=&quot;https://example.substack.com/p/recent&quot;&gt;"
+    "Read more&lt;/a&gt;&lt;/p&gt;"
+)
+
+
+def recent_feed_xml(body: str = FULL_BODY) -> str:
     """Render the sample feed with a fresh pubDate on the first item."""
     stamp = format_datetime(datetime.now(UTC) - timedelta(hours=2))
-    return FEED_XML.format(recent=stamp)
+    return FEED_XML.format(recent=stamp, body=body)
 
 
 class TestRssToEmailContents:
@@ -405,8 +414,9 @@ class TestRssToEmailContents:
     def test_maps_items_within_window(self):
         """It maps recent items and drops ones older than the cutoff."""
         since = datetime.now(UTC) - timedelta(days=1)
-        contents = rss_to_email_contents(recent_feed_xml(), BASE_URL, since)
+        contents, truncated = rss_to_email_contents(recent_feed_xml(), BASE_URL, since)
 
+        assert truncated == []
         assert len(contents) == 1
         assert contents[0].title == "Recent Post"
         assert "Hello from RSS" in contents[0].html_body
@@ -418,19 +428,33 @@ class TestRssToEmailContents:
             "<title>Simon Willison's Newsletter</title>", "<title></title>", 1
         )
         since = datetime.now(UTC) - timedelta(days=1)
-        contents = rss_to_email_contents(xml, BASE_URL, since)
+        contents, _ = rss_to_email_contents(xml, BASE_URL, since)
 
         assert contents[0].publication == "example"
 
     def test_skips_items_without_body(self):
         """It ignores items carrying no content:encoded body."""
-        xml = recent_feed_xml().replace(
-            "<content:encoded>&lt;p&gt;Hello from RSS&lt;/p&gt;</content:encoded>",
-            "<content:encoded></content:encoded>",
-            1,
-        )
+        xml = recent_feed_xml(body="")
         since = datetime.now(UTC) - timedelta(days=1)
-        assert rss_to_email_contents(xml, BASE_URL, since) == []
+        assert rss_to_email_contents(xml, BASE_URL, since) == ([], [])
+
+    def test_skips_paywalled_teasers(self):
+        """A subscriber-only stub is dropped and reported, not published."""
+        xml = recent_feed_xml(body=TEASER_BODY)
+        since = datetime.now(UTC) - timedelta(days=1)
+        contents, truncated = rss_to_email_contents(xml, BASE_URL, since)
+
+        assert contents == []
+        assert truncated == ["https://example.substack.com/p/recent"]
+
+    def test_keeps_full_length_posts(self):
+        """A real post comfortably clears the teaser threshold."""
+        xml = recent_feed_xml(body="&lt;p&gt;" + ("word " * 200) + "&lt;/p&gt;")
+        since = datetime.now(UTC) - timedelta(days=1)
+        contents, truncated = rss_to_email_contents(xml, BASE_URL, since)
+
+        assert len(contents) == 1
+        assert truncated == []
 
     def test_skips_items_with_unparseable_date(self):
         """It ignores items whose pubDate cannot be read."""
@@ -440,7 +464,7 @@ class TestRssToEmailContents:
             recent_feed_xml(),
         )
         since = datetime.now(UTC) - timedelta(days=1)
-        assert rss_to_email_contents(xml, BASE_URL, since) == []
+        assert rss_to_email_contents(xml, BASE_URL, since) == ([], [])
 
     def test_malformed_xml_raises(self):
         """It raises a clear error for unparseable XML."""
@@ -466,10 +490,13 @@ class TestFetchPublicationContentsViaRss:
         client.get = AsyncMock(return_value=response)
 
         since = datetime.now(UTC) - timedelta(days=1)
-        contents = await fetch_publication_contents_via_rss(client, BASE_URL, since)
+        contents, truncated = await fetch_publication_contents_via_rss(
+            client, BASE_URL, since
+        )
 
         client.get.assert_awaited_once_with(f"{BASE_URL}/feed")
         assert [c.title for c in contents] == ["Recent Post"]
+        assert truncated == []
 
 
 class TestExportSubstackToEpub:

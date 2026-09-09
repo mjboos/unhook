@@ -87,6 +87,13 @@ Set `SUBSTACK_PUBLICATIONS` (comma-separated list) and optionally
 `SUBSTACK_SID` (the `substack.sid` browser cookie, to include paywalled
 posts from subscribed publications) instead of passing options.
 
+`SUBSTACK_SID` only unlocks paywalled posts on the JSON API path. It does
+not affect Cloudflare's bot challenge (verified: the challenge is decided
+before the cookie is read), and it does not unlock the RSS fallback, where
+Substack serves subscriber-only posts as a "Read more" teaser and gates
+full text behind a per-user private feed URL. Those teasers are detected
+and dropped rather than published as near-empty chapters.
+
 ### Listing Substack Subscriptions
 Discover subscriptions to build the `SUBSTACK_PUBLICATIONS` value:
 ```bash

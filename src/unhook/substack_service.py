@@ -14,6 +14,7 @@ the publication.
 from __future__ import annotations
 
 import logging
+import re
 import ssl
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
@@ -52,6 +53,10 @@ ARCHIVE_LIMIT = 50
 REQUEST_TIMEOUT = 30.0
 # Namespace of the RSS extension carrying a post's full HTML body.
 CONTENT_NS = "{http://purl.org/rss/1.0/modules/content/}"
+# A subscriber-only post appears in RSS as a stub whose whole body is a
+# "Read more" link back to the post (~130 bytes).  Real posts run to
+# thousands of characters, so visible text this short marks a teaser.
+RSS_TRUNCATED_TEXT_LIMIT = 200
 USER_AGENT = "Mozilla/5.0 (compatible; unhook)"
 SID_COOKIE_NAME = "substack.sid"
 SUBSTACK_HOME = "https://substack.com"
@@ -376,15 +381,33 @@ def _parse_rss_date(value: str | None) -> datetime | None:
     return parsed
 
 
+def _visible_text(html: str) -> str:
+    """Strip tags from an HTML fragment, leaving collapsed visible text."""
+    return " ".join(re.sub(r"<[^>]+>", " ", html).split())
+
+
+def _is_truncated_rss_body(html: str) -> bool:
+    """Whether an RSS body is a paywall teaser rather than a full post.
+
+    The feed carries subscriber-only posts as a stub linking back to the
+    post.  The ``substack.sid`` cookie does not unlock these — Substack
+    gates full-text RSS behind a per-user private feed URL instead — so
+    these are dropped rather than published as near-empty chapters.
+    """
+    return len(_visible_text(html)) < RSS_TRUNCATED_TEXT_LIMIT
+
+
 def rss_to_email_contents(
     xml_text: str, base_url: str, since: datetime
-) -> list[EmailContent]:
+) -> tuple[list[EmailContent], list[str]]:
     """Map a Substack RSS feed onto content objects.
 
     The feed's ``content:encoded`` holds the same article HTML the JSON API
     returns in ``body_html``, so the rest of the pipeline is unchanged.
-    Subscriber-only posts carry a truncated body here rather than an empty
-    one, which is why the API remains the preferred source.
+
+    Returns ``(contents, truncated_post_urls)``.  Subscriber-only posts
+    carry a teaser body here rather than an empty one, so they are
+    detected and reported separately instead of reaching the EPUB.
     """
     try:
         root = ET.fromstring(xml_text)
@@ -401,12 +424,16 @@ def rss_to_email_contents(
         publication = host.removeprefix("www.").removesuffix(".substack.com")
 
     contents: list[EmailContent] = []
+    truncated: list[str] = []
     for item in channel.findall("item"):
         published = _parse_rss_date(item.findtext("pubDate"))
         if published is None or published < since:
             continue
         body = (item.findtext(f"{CONTENT_NS}encoded") or "").strip()
         if not body:
+            continue
+        if _is_truncated_rss_body(body):
+            truncated.append((item.findtext("link") or "").strip() or base_url)
             continue
         title = (item.findtext("title") or "").strip() or "Untitled Post"
         contents.append(
@@ -418,12 +445,12 @@ def rss_to_email_contents(
                 external_image_urls=_extract_external_image_urls(body),
             )
         )
-    return contents
+    return contents, truncated
 
 
 async def fetch_publication_contents_via_rss(
     client: httpx.AsyncClient, base_url: str, since: datetime
-) -> list[EmailContent]:
+) -> tuple[list[EmailContent], list[str]]:
     """Fetch a publication's recent posts from its public RSS feed.
 
     Used when the JSON API is unreachable.  ``/feed`` is the interface
@@ -482,6 +509,7 @@ class DigestResult:
     via_rss: list[str] = field(default_factory=list)
     unreachable: list[tuple[str, str]] = field(default_factory=list)
     skipped_paywalled: list[str] = field(default_factory=list)
+    skipped_truncated: list[str] = field(default_factory=list)
 
     @property
     def attempted(self) -> int:
@@ -502,6 +530,11 @@ class DigestResult:
             lines.append(
                 f"Skipped {len(self.skipped_paywalled)} subscriber-only post(s)."
             )
+        if self.skipped_truncated:
+            lines.append(
+                f"Skipped {len(self.skipped_truncated)} subscriber-only post(s) "
+                "that the RSS feed carried only as a teaser."
+            )
         if self.unreachable:
             lines.append(f"Unreachable ({len(self.unreachable)}):")
             lines.extend(f"  {host}: {reason}" for host, reason in self.unreachable)
@@ -521,6 +554,7 @@ class DigestResult:
                 for host, reason in self.unreachable
             ],
             "skipped_paywalled": self.skipped_paywalled,
+            "skipped_truncated": self.skipped_truncated,
         }
 
 
@@ -567,7 +601,7 @@ async def export_substack_to_epub(
                     api_exc,
                 )
                 try:
-                    pub_contents = await fetch_publication_contents_via_rss(
+                    pub_contents, truncated = await fetch_publication_contents_via_rss(
                         client, base_url, since
                     )
                 except Exception as rss_exc:  # noqa: BLE001
@@ -582,6 +616,7 @@ async def export_substack_to_epub(
                     )
                     continue
                 skipped = []
+                result.skipped_truncated.extend(truncated)
                 result.via_rss.append(base_url)
             else:
                 result.via_api.append(base_url)
@@ -590,6 +625,15 @@ async def export_substack_to_epub(
 
     result.post_count = len(contents)
     result.skipped_paywalled = skipped_paywalled
+    if result.skipped_truncated:
+        # Worth stating plainly: unlike the API path, no cookie fixes this.
+        logger.warning(
+            "Skipped %d subscriber-only post(s) that the RSS feed carried only "
+            "as a teaser; Substack serves full-text RSS through a per-user "
+            "private feed URL, which SUBSTACK_SID does not provide: %s",
+            len(result.skipped_truncated),
+            ", ".join(result.skipped_truncated),
+        )
     if result.unreachable:
         logger.warning(
             "%d of %d publication(s) were unreachable and contributed no posts",

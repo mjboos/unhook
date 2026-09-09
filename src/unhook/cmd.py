@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import date
 from pathlib import Path
 
@@ -174,6 +175,10 @@ def substack_to_kindle(
         envvar="SUBSTACK_SID",
         help="substack.sid session cookie to unlock paywalled posts (optional)",
     ),
+    report_json: Path = typer.Option(
+        None,
+        help="Write a per-publication run report as JSON to this path",
+    ),
 ) -> None:
     """Fetch recent posts from Substack publications and export as EPUB.
 
@@ -195,7 +200,7 @@ def substack_to_kindle(
         typer.echo("Error: no valid publications in list", err=True)
         raise typer.Exit(1)
 
-    output_path = asyncio.run(
+    result = asyncio.run(
         export_substack_to_epub(
             publications=publication_urls,
             output_dir=output_dir,
@@ -205,8 +210,16 @@ def substack_to_kindle(
         )
     )
 
-    if output_path:
-        typer.echo(f"Saved EPUB to {output_path}")
+    for line in result.summary_lines():
+        typer.echo(line)
+
+    if report_json:
+        report_json.parent.mkdir(parents=True, exist_ok=True)
+        report_json.write_text(json.dumps(result.to_dict(), indent=2))
+        typer.echo(f"Wrote run report to {report_json}")
+
+    if result.output_path:
+        typer.echo(f"Saved EPUB to {result.output_path}")
     else:
         typer.echo("No posts found matching criteria. Skipping.", err=True)
         raise typer.Exit(0)

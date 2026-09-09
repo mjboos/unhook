@@ -78,7 +78,10 @@ Fetch recent posts from Substack publications via their JSON API and export as E
 uv run unhook substack-to-kindle --publications "thezvi, www.astralcodexten.com"
 uv run unhook substack-to-kindle --since-days 7      # posts from last 7 days
 uv run unhook substack-to-kindle --output-dir ./out  # custom output directory
+uv run unhook substack-to-kindle --report-json run.json  # per-publication report
 ```
+Every run prints how many publications were reached, by which route
+(JSON API or RSS feed), and names any that contributed nothing.
 Publications accept a bare subdomain (`thezvi`), domain, or full URL.
 Set `SUBSTACK_PUBLICATIONS` (comma-separated list) and optionally
 `SUBSTACK_SID` (the `substack.sid` browser cookie, to include paywalled
@@ -180,7 +183,7 @@ uv run tox -e pre-commit
   - `gmail_service.py`: Gmail IMAP client for fetching emails by label
   - `email_content.py`: Email content parsing (HTML/text bodies, inline images, external image extraction)
   - `gmail_epub_service.py`: Gmail-to-EPUB pipeline (HTML sanitization, boilerplate stripping, image handling, EPUB building)
-  - `substack_service.py`: Substack JSON API client (archive + post fetching, paywall detection, subscription discovery) reusing the email EPUB pipeline
+  - `substack_service.py`: Substack JSON API client (archive + post fetching, paywall detection, subscription discovery) reusing the email EPUB pipeline. Falls back to a publication's RSS feed (`/feed`) when the JSON API is blocked, and returns a `DigestResult` naming which publications were reached and which contributed nothing
 - `tests/`: Test files mirroring source structure
   - `conftest.py`: Shared fixtures (`make_post`, `make_repost`, `make_post_mock`, `mock_env_vars`, etc.)
 - `docs/`: Documentation
@@ -189,7 +192,7 @@ uv run tox -e pre-commit
   - `test.yml`: Runs tests and pre-commit on push/PR to main (Ubuntu + Windows, Python 3.12)
   - `integration.yml`: Manual dispatch for Bluesky integration test with EPUB export
   - `kindle.yml`: Weekly Bluesky EPUB to Kindle (Saturday 18:00 UTC)
-  - `substack-kindle.yml`: Daily Substack API EPUB to Kindle (18:00 UTC; reads the `SUBSTACK_PUBLICATIONS` repository variable and optional `SUBSTACK_SID` secret). `SINCE_DAYS` must match the schedule — the pipeline keeps no record of what it already sent, so a wider window re-sends posts
+  - `substack-kindle.yml`: Daily Substack API EPUB to Kindle (18:00 UTC; reads the `SUBSTACK_PUBLICATIONS` repository variable and optional `SUBSTACK_SID` secret). `SINCE_DAYS` must match the schedule — the pipeline keeps no record of what it already sent, so a wider window re-sends posts. The run writes a per-publication report, prints it to the job summary, and fails when fewer than `MIN_REACHED_FRACTION` of publications were reachable, so an incomplete digest is visible rather than silent. `dry_run` builds and checks the digest without emailing it
 - `.env`: Credentials (not committed to git)
 - Minimum Python version: 3.12
 

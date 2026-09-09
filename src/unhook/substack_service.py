@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import logging
 import ssl
-from dataclasses import dataclass
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 import httpx
@@ -48,6 +50,8 @@ _TLS_CIPHERS = ":".join(
 
 ARCHIVE_LIMIT = 50
 REQUEST_TIMEOUT = 30.0
+# Namespace of the RSS extension carrying a post's full HTML body.
+CONTENT_NS = "{http://purl.org/rss/1.0/modules/content/}"
 USER_AGENT = "Mozilla/5.0 (compatible; unhook)"
 SID_COOKIE_NAME = "substack.sid"
 SUBSTACK_HOME = "https://substack.com"
@@ -359,6 +363,79 @@ def post_to_email_content(post: dict, base_url: str) -> EmailContent | None:
     )
 
 
+def _parse_rss_date(value: str | None) -> datetime | None:
+    """Parse an RFC 2822 timestamp like ``Mon, 07 Sep 2026 16:48:55 GMT``."""
+    if not value:
+        return None
+    try:
+        parsed = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed
+
+
+def rss_to_email_contents(
+    xml_text: str, base_url: str, since: datetime
+) -> list[EmailContent]:
+    """Map a Substack RSS feed onto content objects.
+
+    The feed's ``content:encoded`` holds the same article HTML the JSON API
+    returns in ``body_html``, so the rest of the pipeline is unchanged.
+    Subscriber-only posts carry a truncated body here rather than an empty
+    one, which is why the API remains the preferred source.
+    """
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError as exc:
+        raise ValueError(f"Malformed RSS feed for {base_url}: {exc}") from exc
+
+    channel = root.find("channel")
+    if channel is None:
+        raise ValueError(f"RSS feed for {base_url} has no channel element")
+
+    publication = (channel.findtext("title") or "").strip()
+    if not publication:
+        host = base_url.split("://", 1)[-1]
+        publication = host.removeprefix("www.").removesuffix(".substack.com")
+
+    contents: list[EmailContent] = []
+    for item in channel.findall("item"):
+        published = _parse_rss_date(item.findtext("pubDate"))
+        if published is None or published < since:
+            continue
+        body = (item.findtext(f"{CONTENT_NS}encoded") or "").strip()
+        if not body:
+            continue
+        title = (item.findtext("title") or "").strip() or "Untitled Post"
+        contents.append(
+            EmailContent(
+                title=title,
+                html_body=body,
+                published=published,
+                publication=publication,
+                external_image_urls=_extract_external_image_urls(body),
+            )
+        )
+    return contents
+
+
+async def fetch_publication_contents_via_rss(
+    client: httpx.AsyncClient, base_url: str, since: datetime
+) -> list[EmailContent]:
+    """Fetch a publication's recent posts from its public RSS feed.
+
+    Used when the JSON API is unreachable.  ``/feed`` is the interface
+    Substack publishes for feed readers, and it survives the bot challenge
+    that blocks ``/api/v1/archive`` from some networks.  It returns only the
+    20 most recent posts, which comfortably covers a daily digest.
+    """
+    response = await client.get(f"{base_url}/feed")
+    response.raise_for_status()
+    return rss_to_email_contents(response.text, base_url, since)
+
+
 def _is_paywalled(post: dict) -> bool:
     return post.get("audience") not in (None, "everyone")
 
@@ -390,13 +467,70 @@ async def fetch_publication_contents(
     return contents, skipped
 
 
+@dataclass
+class DigestResult:
+    """Outcome of one digest run, per publication.
+
+    ``unreachable`` is the part that matters operationally: a publication
+    that answered neither the JSON API nor its RSS feed contributes no
+    posts, and without this the digest is silently short.
+    """
+
+    output_path: Path | None = None
+    post_count: int = 0
+    via_api: list[str] = field(default_factory=list)
+    via_rss: list[str] = field(default_factory=list)
+    unreachable: list[tuple[str, str]] = field(default_factory=list)
+    skipped_paywalled: list[str] = field(default_factory=list)
+
+    @property
+    def attempted(self) -> int:
+        return len(self.via_api) + len(self.via_rss) + len(self.unreachable)
+
+    @property
+    def reached(self) -> int:
+        return len(self.via_api) + len(self.via_rss)
+
+    def summary_lines(self) -> list[str]:
+        """Render a human-readable run summary."""
+        lines = [
+            f"Reached {self.reached}/{self.attempted} publication(s): "
+            f"{len(self.via_api)} via API, {len(self.via_rss)} via RSS.",
+            f"Collected {self.post_count} post(s).",
+        ]
+        if self.skipped_paywalled:
+            lines.append(
+                f"Skipped {len(self.skipped_paywalled)} subscriber-only post(s)."
+            )
+        if self.unreachable:
+            lines.append(f"Unreachable ({len(self.unreachable)}):")
+            lines.extend(f"  {host}: {reason}" for host, reason in self.unreachable)
+        return lines
+
+    def to_dict(self) -> dict:
+        """Render the report as JSON-serializable data."""
+        return {
+            "output_path": str(self.output_path) if self.output_path else None,
+            "post_count": self.post_count,
+            "attempted": self.attempted,
+            "reached": self.reached,
+            "via_api": self.via_api,
+            "via_rss": self.via_rss,
+            "unreachable": [
+                {"publication": host, "reason": reason}
+                for host, reason in self.unreachable
+            ],
+            "skipped_paywalled": self.skipped_paywalled,
+        }
+
+
 async def export_substack_to_epub(
     publications: list[str],
     output_dir: Path | str,
     since_days: int = 4,
     file_prefix: str = "substack",
     sid: str | None = None,
-) -> Path | None:
+) -> DigestResult:
     """Fetch recent posts from publications and export to EPUB.
 
     Args:
@@ -407,12 +541,14 @@ async def export_substack_to_epub(
         sid: Optional ``substack.sid`` cookie to unlock paywalled posts.
 
     Returns:
-        Path to the created EPUB file, or None if no posts found.
+        A ``DigestResult`` carrying the EPUB path (None when no posts were
+        found) plus which publications were reached and which were not.
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     since = datetime.now(UTC) - timedelta(days=since_days)
 
+    result = DigestResult()
     contents: list[EmailContent] = []
     skipped_paywalled: list[str] = []
     async with _make_client(sid) as client:
@@ -421,11 +557,45 @@ async def export_substack_to_epub(
                 pub_contents, skipped = await fetch_publication_contents(
                     client, base_url, since
                 )
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("Failed to fetch archive for %s: %s", base_url, exc)
-                continue
+            except Exception as api_exc:  # noqa: BLE001
+                # The JSON API is challenged as bot traffic on some networks
+                # (every *.substack.com host 403s from GitHub-hosted runners),
+                # so fall back to the publication's RSS feed before giving up.
+                logger.info(
+                    "Archive API unavailable for %s (%s); trying the RSS feed",
+                    base_url,
+                    api_exc,
+                )
+                try:
+                    pub_contents = await fetch_publication_contents_via_rss(
+                        client, base_url, since
+                    )
+                except Exception as rss_exc:  # noqa: BLE001
+                    logger.warning(
+                        "Failed to fetch %s: API (%s) and RSS (%s)",
+                        base_url,
+                        api_exc,
+                        rss_exc,
+                    )
+                    result.unreachable.append(
+                        (base_url, f"api: {api_exc}; rss: {rss_exc}")
+                    )
+                    continue
+                skipped = []
+                result.via_rss.append(base_url)
+            else:
+                result.via_api.append(base_url)
             contents.extend(pub_contents)
             skipped_paywalled.extend(skipped)
+
+    result.post_count = len(contents)
+    result.skipped_paywalled = skipped_paywalled
+    if result.unreachable:
+        logger.warning(
+            "%d of %d publication(s) were unreachable and contributed no posts",
+            len(result.unreachable),
+            result.attempted,
+        )
 
     if skipped_paywalled:
         if sid:
@@ -454,7 +624,7 @@ async def export_substack_to_epub(
             since_days,
             len(publications),
         )
-        return None
+        return result
 
     contents.sort(key=lambda c: c.published, reverse=True)
 
@@ -471,10 +641,12 @@ async def export_substack_to_epub(
     timestamp = datetime.now().strftime("%Y-%m-%d")
     output_path = output_dir / f"{file_prefix}-{timestamp}.epub"
     builder = EmailEpubBuilder(title=f"Substack - {timestamp}")
-    return builder.build(contents, external_images, output_path)
+    result.output_path = builder.build(contents, external_images, output_path)
+    return result
 
 
 __all__ = [
+    "DigestResult",
     "Subscription",
     "export_substack_to_epub",
     "fetch_authenticated_subscriptions",
@@ -485,7 +657,9 @@ __all__ = [
     "normalize_handle",
     "publication_base_url",
     "fetch_publication_contents",
+    "fetch_publication_contents_via_rss",
     "fetch_recent_post_slugs",
+    "rss_to_email_contents",
     "normalize_publication_url",
     "parse_publications",
     "post_to_email_content",

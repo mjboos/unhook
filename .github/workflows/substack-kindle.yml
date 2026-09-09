@@ -13,6 +13,11 @@ on:
         description: "Comma-separated publications (overrides repo variable)"
         required: false
         default: ""
+      dry_run:
+        description: "Build and check the digest without emailing it"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   fetch-and-send:
@@ -24,6 +29,10 @@ jobs:
       # what it already sent, so a window wider than the gap between runs
       # re-sends the same posts in consecutive digests.
       SINCE_DAYS: ${{ inputs.since_days || '1' }}
+      # Fail the run when more than a tenth of the list is unreachable.  Every
+      # *.substack.com publication silently 403'd for the first week this
+      # workflow ran, so a green run is not evidence the digest was complete.
+      MIN_REACHED_FRACTION: "0.9"
     steps:
       - name: Check publications configured
         id: config
@@ -56,7 +65,8 @@ jobs:
           uv run python -m unhook.cmd substack-to-kindle \
             --since-days "$SINCE_DAYS" \
             --output-dir "exports" \
-            --file-prefix "substack"
+            --file-prefix "substack" \
+            --report-json "exports/report.json"
 
           # Check if any EPUB was created
           if ls exports/*.epub 1> /dev/null 2>&1; then
@@ -100,7 +110,7 @@ jobs:
           PY
 
       - name: Send EPUB via email
-        if: steps.export.outputs.epub_created == 'true'
+        if: steps.export.outputs.epub_created == 'true' && !inputs.dry_run
         uses: dawidd6/action-send-mail@v5
         with:
           server_address: smtp.gmail.com
@@ -117,3 +127,43 @@ jobs:
       - name: Log no posts found
         if: steps.config.outputs.configured == 'true' && steps.export.outputs.epub_created == 'false'
         run: echo "No posts found matching criteria. Skipping send."
+
+      # Runs after the send so a partial digest still reaches the Kindle, but
+      # the run goes red when publications dropped out of it.
+      - name: Report unreachable publications
+        if: always() && steps.config.outputs.configured == 'true' && hashFiles('exports/report.json') != ''
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+
+          report = json.loads(pathlib.Path("exports/report.json").read_text())
+          attempted = report["attempted"]
+          reached = report["reached"]
+          unreachable = report["unreachable"]
+
+          summary = pathlib.Path(os.environ["GITHUB_STEP_SUMMARY"])
+          lines = [
+              "## Substack digest",
+              "",
+              f"- Publications reached: **{reached}/{attempted}** "
+              f"({len(report['via_api'])} via API, {len(report['via_rss'])} via RSS)",
+              f"- Posts collected: **{report['post_count']}**",
+              f"- Subscriber-only posts skipped: {len(report['skipped_paywalled'])}",
+          ]
+          if unreachable:
+              lines += ["", "### Unreachable publications", ""]
+              lines += [f"- `{item['publication']}` - {item['reason']}" for item in unreachable]
+          summary.write_text("\n".join(lines) + "\n")
+
+          for item in unreachable:
+              print(f"::warning::{item['publication']} contributed no posts: {item['reason']}")
+
+          floor = float(os.environ["MIN_REACHED_FRACTION"])
+          if attempted and reached / attempted < floor:
+              raise SystemExit(
+                  f"Only {reached}/{attempted} publications were reachable, "
+                  f"below the {floor:.0%} floor. The digest is incomplete."
+              )
+          PY

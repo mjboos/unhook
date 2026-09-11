@@ -8,8 +8,8 @@ Unhook is a tool designed to help users reclaim their attention from social medi
 
 1. **Feed fetching**: Fetch Bluesky timeline or author feed posts, with self-thread detection and consolidation, and save to parquet files
 2. **EPUB creation**: Filter posts by length, deduplicate, handle reposts and quoted posts, download and compress images, and export as EPUB
-3. **Newsletter digests**: Fetch posts from Substack publications via their JSON API and export as EPUB. The same EPUB machinery also backs a Gmail-label path (`gmail-to-kindle`), kept for non-Substack newsletters but no longer run on a schedule
-4. **Kindle delivery**: Scheduled GitHub Actions workflows email EPUBs to a Kindle address (weekly for Bluesky, daily for Substack)
+3. **Newsletter digests**: Fetch newsletters from a Gmail label and export as EPUB (`gmail-to-kindle`) — this is the scheduled path. A Substack JSON API path (`substack-to-kindle`) exists for manual use, but cannot be scheduled on GitHub Actions: Cloudflare returns 403 for every `*.substack.com` publication from runner IPs
+4. **Kindle delivery**: Scheduled GitHub Actions workflows email EPUBs to a Kindle address (weekly for Bluesky, Monday and Thursday for newsletters)
 
 ## Development Setup
 
@@ -62,9 +62,9 @@ uv run unhook export-epub --output-dir ./out         # custom output directory
 ```
 
 ### Gmail to Kindle EPUB
-Fetch emails from a Gmail label and export as EPUB. Manual only — no
-workflow runs this on a schedule; the Substack API path replaced it, but
-the command remains for non-Substack newsletters:
+Fetch emails from a Gmail label and export as EPUB. This is the scheduled
+newsletter path (`gmail-kindle.yml`, Monday and Thursday), since Substack
+emails reach the inbox without passing Cloudflare's bot challenge:
 ```bash
 uv run unhook gmail-to-kindle                        # fetch from "newsletters-kindle" label
 uv run unhook gmail-to-kindle --label newsletters    # custom Gmail label
@@ -73,7 +73,9 @@ uv run unhook gmail-to-kindle --output-dir ./out     # custom output directory
 ```
 
 ### Substack to Kindle EPUB
-Fetch recent posts from Substack publications via their JSON API and export as EPUB:
+Fetch recent posts from Substack publications via their JSON API and export
+as EPUB. Manual use only — see the workflow note below on why this cannot
+run on GitHub Actions:
 ```bash
 uv run unhook substack-to-kindle --publications "thezvi, www.astralcodexten.com"
 uv run unhook substack-to-kindle --since-days 7      # posts from last 7 days
@@ -199,7 +201,8 @@ uv run tox -e pre-commit
   - `test.yml`: Runs tests and pre-commit on push/PR to main (Ubuntu + Windows, Python 3.12)
   - `integration.yml`: Manual dispatch for Bluesky integration test with EPUB export
   - `kindle.yml`: Weekly Bluesky EPUB to Kindle (Saturday 18:00 UTC)
-  - `substack-kindle.yml`: Daily Substack API EPUB to Kindle (18:00 UTC; reads the `SUBSTACK_PUBLICATIONS` repository variable and optional `SUBSTACK_SID` secret). `SINCE_DAYS` must match the schedule — the pipeline keeps no record of what it already sent, so a wider window re-sends posts. The run writes a per-publication report, prints it to the job summary, and fails when fewer than `MIN_REACHED_FRACTION` of publications were reachable, so an incomplete digest is visible rather than silent. `dry_run` builds and checks the digest without emailing it
+  - `gmail-kindle.yml`: Newsletter EPUB to Kindle from a Gmail label (Monday and Thursday, 18:00 UTC). The scheduled newsletter path
+  - `substack-kindle.yml`: Substack API EPUB to Kindle, **manual dispatch only**. Cloudflare returns 403 for every `*.substack.com` publication from GitHub-hosted runner IPs, which silently dropped 68 of 104 publications. Measured from a runner: no client-side mitigation changes this — not cipher ordering, browser headers, Chrome TLS/HTTP2 impersonation via `curl_cffi`, nor the RSS feed, which is challenged identically. Custom-domain publications (~34 of the list) are served from their own Cloudflare zones and still work, so dispatch remains useful for those. The run writes a per-publication report, prints it to the job summary, and fails when fewer than `MIN_REACHED_FRACTION` of publications were reachable. `SINCE_DAYS` must match the cadence — the pipeline keeps no record of what it already sent, so a wider window re-sends posts
 - `.env`: Credentials (not committed to git)
 - Minimum Python version: 3.12
 

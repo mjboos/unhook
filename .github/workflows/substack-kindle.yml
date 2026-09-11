@@ -1,8 +1,15 @@
 name: Substack to Kindle
 
+# Manual only.  The daily schedule is off: every *.substack.com publication
+# returns 403 from GitHub-hosted runners (Cloudflare classifies the Actions
+# IP ranges), which silently dropped 68 of 104 publications from the digest.
+# Measured from a runner, no client-side mitigation changes this — not the
+# cipher ordering, not browser headers, not full Chrome TLS/HTTP2
+# impersonation, and not the RSS feed, which is challenged identically.
+# The scheduled newsletter digest runs from Gmail instead (gmail-kindle.yml).
+# Dispatch still works for the ~34 custom-domain publications, which are
+# served from their own Cloudflare zones and are unaffected.
 on:
-  schedule:
-    - cron: "0 18 * * *" # Daily at 18:00 UTC (evening CET)
   workflow_dispatch:
     inputs:
       since_days:

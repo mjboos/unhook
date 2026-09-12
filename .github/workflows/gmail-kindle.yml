@@ -1,18 +1,27 @@
 name: Gmail to Kindle
 
+# The two schedules are exactly 84 hours apart in both directions, so the
+# digest windows tile the week with no overlap and no gap. Keep them that
+# way: an evenly spaced pair is what lets the window alone decide what is
+# new, with no record of what was already sent.
 on:
   schedule:
-    - cron: "0 18 * * 1,4" # Monday & Thursday at 18:00 UTC (evening CET)
+    - cron: "0 18 * * 1" # Monday 18:00 UTC (evening CET)
+    - cron: "0 6 * * 5" # Friday 06:00 UTC (morning CET), 84h later
   workflow_dispatch:
     inputs:
       since_days:
-        description: "Days of history to include"
+        description: "Backfill a missed run: include the last N days instead"
         required: false
-        default: "4"
+        default: ""
       label:
         description: "Gmail label to fetch"
         required: false
         default: "newsletters"
+
+concurrency:
+  group: gmail-kindle
+  cancel-in-progress: false
 
 jobs:
   fetch-and-send:
@@ -20,8 +29,10 @@ jobs:
     env:
       SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
       GAPPPWD: ${{ secrets.GAPPPWD }}
-      SINCE_DAYS: ${{ inputs.since_days || '4' }}
+      SINCE_DAYS: ${{ inputs.since_days }}
       LABEL: ${{ inputs.label || 'newsletters' }}
+      # Half a week. Must match the spacing of the two cron entries above.
+      WINDOW_HOURS: "84"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,8 +48,16 @@ jobs:
       - name: Fetch Gmail and export EPUB
         id: export
         run: |
+          # A scheduled run uses its calendar period; a dispatch may pass
+          # since_days to backfill a window a missed run left behind.
+          if [ -n "$SINCE_DAYS" ]; then
+            window_args=(--since-days "$SINCE_DAYS")
+          else
+            window_args=(--window-hours "$WINDOW_HOURS")
+          fi
+
           uv run python -m unhook.cmd gmail-to-kindle \
-            --since-days "$SINCE_DAYS" \
+            "${window_args[@]}" \
             --label "$LABEL" \
             --output-dir "exports" \
             --file-prefix "newsletters"

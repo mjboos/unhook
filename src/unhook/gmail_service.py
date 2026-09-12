@@ -7,9 +7,11 @@ import imaplib
 import logging
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from email.message import Message
 from typing import TYPE_CHECKING
+
+from unhook.window import Window
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -71,17 +73,20 @@ class GmailService:
     def __exit__(self, *args: object) -> None:
         self.disconnect()
 
-    def fetch_emails_by_label(
-        self,
-        since_days: int = 1,
-    ) -> list[RawEmail]:
-        """Fetch emails with the configured label from the last N days.
+    def fetch_emails_by_label(self, window: Window) -> list[RawEmail]:
+        """Fetch labelled emails whose date falls inside ``window``.
+
+        IMAP's SINCE only filters by calendar date, so it is used as a
+        coarse prefilter and the exact half-open bounds are applied to the
+        parsed Date header. Without that second pass a window is really
+        "since midnight N days ago", which is what makes consecutive
+        digests overlap.
 
         Args:
-            since_days: Only fetch emails from the last N days.
+            window: Half-open interval of message dates to include.
 
         Returns:
-            List of RawEmail objects.
+            List of RawEmail objects, oldest IMAP id first.
         """
         if not self._connection:
             msg = "Not connected to Gmail. Call connect() first."
@@ -94,11 +99,10 @@ class GmailService:
             logger.warning("Could not select label %s", self.config.label)
             return []
 
-        # Build search criteria for recent emails
-        since_date = datetime.now(UTC) - timedelta(days=since_days)
-        date_str = since_date.strftime("%d-%b-%Y")
+        # SINCE is date-granular and inclusive, so floor to the start's
+        # date: it can only ever return a superset of the window.
+        date_str = window.start.strftime("%d-%b-%Y")
 
-        # Search using IMAP SINCE criteria
         status, data = self._connection.search(None, f"SINCE {date_str}")
         if status != "OK" or not data[0]:
             logger.info(
@@ -110,15 +114,27 @@ class GmailService:
         logger.info("Found %d emails in label %s", len(message_ids), self.config.label)
 
         emails: list[RawEmail] = []
+        outside = 0
         for msg_id in message_ids:
             try:
                 raw_email = self._fetch_single_email(msg_id)
-                if raw_email:
-                    emails.append(raw_email)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Failed to fetch email %s: %s", msg_id, exc)
                 continue
+            if not raw_email:
+                continue
+            if not window.contains(raw_email.date):
+                outside += 1
+                continue
+            emails.append(raw_email)
 
+        logger.info(
+            "Kept %d email(s) in [%s, %s); %d outside the window",
+            len(emails),
+            window.start.isoformat(),
+            window.end.isoformat(),
+            outside,
+        )
         return emails
 
     def _format_label_path(self, label: str) -> str:

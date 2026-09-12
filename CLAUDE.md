@@ -66,11 +66,25 @@ Fetch emails from a Gmail label and export as EPUB. This is the scheduled
 newsletter path (`gmail-kindle.yml`, Monday and Thursday), since Substack
 emails reach the inbox without passing Cloudflare's bot challenge:
 ```bash
-uv run unhook gmail-to-kindle                        # fetch from "newsletters-kindle" label
+uv run unhook gmail-to-kindle                        # current 84h digest period
 uv run unhook gmail-to-kindle --label newsletters    # custom Gmail label
-uv run unhook gmail-to-kindle --since-days 4         # emails from last 4 days
+uv run unhook gmail-to-kindle --window-hours 168     # weekly period instead
+uv run unhook gmail-to-kindle --since-days 4         # backfill a missed run
 uv run unhook gmail-to-kindle --output-dir ./out     # custom output directory
 ```
+
+The window is the most recently closed period of `--window-hours`,
+measured from a fixed anchor (`window.py`) rather than from the moment the
+job runs. Consecutive digests therefore tile the calendar exactly — no
+newsletter is sent twice and none is skipped — with no record kept of what
+was already sent, and without drifting when a scheduled run starts late.
+At the default 84 hours the boundaries fall on Monday 18:00 and Friday
+06:00 UTC in perpetuity, since two periods make exactly one week.
+
+`--since-days` overrides the schedule with a plain trailing window. It is
+for backfilling a window a missed run left behind; repeated use re-sends
+content. A run that never happens is the one case this design cannot
+recover on its own — that is the price of keeping no state.
 
 ### Substack to Kindle EPUB
 Fetch recent posts from Substack publications via their JSON API and export
@@ -189,7 +203,8 @@ uv run tox -e pre-commit
   - `constants.py`: Bluesky API type constants and helpers
   - `epub_builder.py`: EPUB file builder for Bluesky posts (markdown to HTML, image embedding)
   - `epub_service.py`: Orchestrates feed fetching, image downloading/compression, repost handling, and EPUB export
-  - `gmail_service.py`: Gmail IMAP client for fetching emails by label
+  - `gmail_service.py`: Gmail IMAP client for fetching emails by label, filtered to an exact `Window` (IMAP `SINCE` is only date-granular, so it serves as a coarse prefilter)
+  - `window.py`: Digest windows that tile the calendar from a fixed anchor, so a stateless digest neither repeats nor skips content
   - `email_content.py`: Email content parsing (HTML/text bodies, inline images, external image extraction)
   - `gmail_epub_service.py`: Gmail-to-EPUB pipeline (HTML sanitization, boilerplate stripping, image handling, EPUB building)
   - `substack_service.py`: Substack JSON API client (archive + post fetching, paywall detection, subscription discovery) reusing the email EPUB pipeline. Falls back to a publication's RSS feed (`/feed`) when the JSON API is blocked, and returns a `DigestResult` naming which publications were reached and which contributed nothing
@@ -201,7 +216,7 @@ uv run tox -e pre-commit
   - `test.yml`: Runs tests and pre-commit on push/PR to main (Ubuntu + Windows, Python 3.12)
   - `integration.yml`: Manual dispatch for Bluesky integration test with EPUB export
   - `kindle.yml`: Weekly Bluesky EPUB to Kindle (Saturday 18:00 UTC)
-  - `gmail-kindle.yml`: Newsletter EPUB to Kindle from a Gmail label (Monday and Thursday, 18:00 UTC). The scheduled newsletter path
+  - `gmail-kindle.yml`: Newsletter EPUB to Kindle from a Gmail label. The scheduled newsletter path. Its two cron entries (Monday 18:00 and Friday 06:00 UTC) are exactly 84 hours apart in both directions, matching `WINDOW_HOURS`, so the digest windows tile the week without overlap or gaps. Change one and you must change the others; a `concurrency` group keeps a manual dispatch from racing the cron
   - `substack-kindle.yml`: Substack API EPUB to Kindle, **manual dispatch only**. Cloudflare returns 403 for every `*.substack.com` publication from GitHub-hosted runner IPs, which silently dropped 68 of 104 publications. Measured from a runner: no client-side mitigation changes this — not cipher ordering, browser headers, Chrome TLS/HTTP2 impersonation via `curl_cffi`, nor the RSS feed, which is challenged identically. Custom-domain publications (~34 of the list) are served from their own Cloudflare zones and still work, so dispatch remains useful for those. The run writes a per-publication report, prints it to the job summary, and fails when fewer than `MIN_REACHED_FRACTION` of publications were reachable. `SINCE_DAYS` must match the cadence — the pipeline keeps no record of what it already sent, so a wider window re-sends posts
 - `.env`: Credentials (not committed to git)
 - Minimum Python version: 3.12

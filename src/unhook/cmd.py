@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -12,6 +12,12 @@ import typer
 
 from unhook.epub_service import export_recent_posts_to_epub
 from unhook.feed import fetch_feed_posts
+from unhook.window import (
+    DEFAULT_ANCHOR,
+    DEFAULT_WINDOW_HOURS,
+    digest_window,
+    trailing_window,
+)
 
 app = typer.Typer()
 
@@ -96,7 +102,26 @@ def export_epub(
 @app.command()
 def gmail_to_kindle(
     output_dir: Path = typer.Option(Path("exports"), help="Directory to save EPUBs"),
-    since_days: int = typer.Option(1, help="Only include emails from the last N days"),
+    window_hours: float = typer.Option(
+        DEFAULT_WINDOW_HOURS,
+        help=(
+            "Length of each digest period in hours. Periods are measured "
+            "from a fixed anchor, so consecutive runs tile exactly. 84 "
+            "gives two evenly spaced runs per week"
+        ),
+    ),
+    anchor: datetime = typer.Option(
+        None,
+        formats=["%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"],
+        help="Any instant sitting on a period boundary (default: Mon 18:00 UTC)",
+    ),
+    since_days: float = typer.Option(
+        None,
+        help=(
+            "Ignore the schedule and include the last N days. For manually "
+            "backfilling a missed run; repeated use re-sends content"
+        ),
+    ),
     file_prefix: str = typer.Option("newsletters", help="Filename prefix for the EPUB"),
     label: str = typer.Option(
         "newsletters-kindle", help="Gmail label to fetch emails from"
@@ -113,6 +138,12 @@ def gmail_to_kindle(
     ),
 ) -> None:
     """Fetch emails from Gmail by label and export as EPUB.
+
+    By default the window is the most recently closed period of
+    ``--window-hours``, measured from a fixed anchor rather than from the
+    moment this runs. Consecutive digests therefore tile the calendar
+    exactly: no newsletter is sent twice, and none is skipped, even when a
+    scheduled run starts late.
 
     Requires Gmail IMAP access with an app password.
     Set SMTP_USERNAME and GAPPPWD environment variables,
@@ -141,11 +172,26 @@ def gmail_to_kindle(
         label=label,
     )
 
+    now = datetime.now(UTC)
+    if since_days is not None:
+        window = trailing_window(now, since_days)
+        typer.echo(f"Backfill window: {window.start:%Y-%m-%d %H:%M} -> now")
+    else:
+        window = digest_window(
+            now,
+            window_hours=window_hours,
+            anchor=anchor.astimezone(UTC) if anchor else DEFAULT_ANCHOR,
+        )
+        typer.echo(
+            f"Digest window: {window.start:%a %Y-%m-%d %H:%M} -> "
+            f"{window.end:%a %Y-%m-%d %H:%M} UTC ({window.hours:g}h)"
+        )
+
     output_path = asyncio.run(
         export_gmail_to_epub(
             config=config,
             output_dir=output_dir,
-            since_days=since_days,
+            window=window,
             file_prefix=file_prefix,
         )
     )

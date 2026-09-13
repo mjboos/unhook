@@ -1,6 +1,8 @@
 """Tests for the Substack EPUB export service."""
 
+import re
 from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -16,6 +18,7 @@ from unhook.substack_service import (
     fetch_post,
     fetch_public_subscriptions,
     fetch_publication_contents,
+    fetch_publication_contents_via_rss,
     fetch_recent_post_slugs,
     format_publications_value,
     list_subscriptions,
@@ -24,6 +27,7 @@ from unhook.substack_service import (
     parse_publications,
     post_to_email_content,
     publication_base_url,
+    rss_to_email_contents,
 )
 
 BASE_URL = "https://example.substack.com"
@@ -366,6 +370,135 @@ class TestMakeClient:
             assert len(client.cookies) == 0
 
 
+FEED_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Simon Willison's Newsletter</title>
+    <item>
+      <title>Recent Post</title>
+      <link>https://example.substack.com/p/recent</link>
+      <pubDate>{recent}</pubDate>
+      <content:encoded>{body}</content:encoded>
+    </item>
+    <item>
+      <title>Ancient Post</title>
+      <link>https://example.substack.com/p/ancient</link>
+      <pubDate>Mon, 01 Jan 2001 10:00:00 GMT</pubDate>
+      <content:encoded>&lt;p&gt;Too old&lt;/p&gt;</content:encoded>
+    </item>
+  </channel>
+</rss>
+"""
+
+# Long enough to clear RSS_TRUNCATED_TEXT_LIMIT, as a real post would be.
+FULL_BODY = "&lt;p&gt;Hello from RSS. " + ("Body text. " * 40) + "&lt;/p&gt;"
+
+# Substack's stand-in for a subscriber-only post: a bare "Read more" link.
+TEASER_BODY = (
+    "&lt;p&gt;&lt;a href=&quot;https://example.substack.com/p/recent&quot;&gt;"
+    "Read more&lt;/a&gt;&lt;/p&gt;"
+)
+
+
+def recent_feed_xml(body: str = FULL_BODY) -> str:
+    """Render the sample feed with a fresh pubDate on the first item."""
+    stamp = format_datetime(datetime.now(UTC) - timedelta(hours=2))
+    return FEED_XML.format(recent=stamp, body=body)
+
+
+class TestRssToEmailContents:
+    """Tests for rss_to_email_contents."""
+
+    def test_maps_items_within_window(self):
+        """It maps recent items and drops ones older than the cutoff."""
+        since = datetime.now(UTC) - timedelta(days=1)
+        contents, truncated = rss_to_email_contents(recent_feed_xml(), BASE_URL, since)
+
+        assert truncated == []
+        assert len(contents) == 1
+        assert contents[0].title == "Recent Post"
+        assert "Hello from RSS" in contents[0].html_body
+        assert contents[0].publication == "Simon Willison's Newsletter"
+
+    def test_falls_back_to_host_without_channel_title(self):
+        """It derives a publication name when the feed omits the title."""
+        xml = recent_feed_xml().replace(
+            "<title>Simon Willison's Newsletter</title>", "<title></title>", 1
+        )
+        since = datetime.now(UTC) - timedelta(days=1)
+        contents, _ = rss_to_email_contents(xml, BASE_URL, since)
+
+        assert contents[0].publication == "example"
+
+    def test_skips_items_without_body(self):
+        """It ignores items carrying no content:encoded body."""
+        xml = recent_feed_xml(body="")
+        since = datetime.now(UTC) - timedelta(days=1)
+        assert rss_to_email_contents(xml, BASE_URL, since) == ([], [])
+
+    def test_skips_paywalled_teasers(self):
+        """A subscriber-only stub is dropped and reported, not published."""
+        xml = recent_feed_xml(body=TEASER_BODY)
+        since = datetime.now(UTC) - timedelta(days=1)
+        contents, truncated = rss_to_email_contents(xml, BASE_URL, since)
+
+        assert contents == []
+        assert truncated == ["https://example.substack.com/p/recent"]
+
+    def test_keeps_full_length_posts(self):
+        """A real post comfortably clears the teaser threshold."""
+        xml = recent_feed_xml(body="&lt;p&gt;" + ("word " * 200) + "&lt;/p&gt;")
+        since = datetime.now(UTC) - timedelta(days=1)
+        contents, truncated = rss_to_email_contents(xml, BASE_URL, since)
+
+        assert len(contents) == 1
+        assert truncated == []
+
+    def test_skips_items_with_unparseable_date(self):
+        """It ignores items whose pubDate cannot be read."""
+        xml = re.sub(
+            r"<pubDate>[^<]*</pubDate>",
+            "<pubDate>not-a-date</pubDate>",
+            recent_feed_xml(),
+        )
+        since = datetime.now(UTC) - timedelta(days=1)
+        assert rss_to_email_contents(xml, BASE_URL, since) == ([], [])
+
+    def test_malformed_xml_raises(self):
+        """It raises a clear error for unparseable XML."""
+        with pytest.raises(ValueError, match="Malformed RSS feed"):
+            rss_to_email_contents("<rss", BASE_URL, datetime.now(UTC))
+
+    def test_missing_channel_raises(self):
+        """It raises when the feed has no channel element."""
+        with pytest.raises(ValueError, match="no channel element"):
+            rss_to_email_contents("<rss></rss>", BASE_URL, datetime.now(UTC))
+
+
+class TestFetchPublicationContentsViaRss:
+    """Tests for fetch_publication_contents_via_rss."""
+
+    @pytest.mark.asyncio
+    async def test_fetches_and_maps_feed(self):
+        """It requests /feed and maps the response."""
+        response = MagicMock()
+        response.raise_for_status.return_value = None
+        response.text = recent_feed_xml()
+        client = MagicMock()
+        client.get = AsyncMock(return_value=response)
+
+        since = datetime.now(UTC) - timedelta(days=1)
+        contents, truncated = await fetch_publication_contents_via_rss(
+            client, BASE_URL, since
+        )
+
+        client.get.assert_awaited_once_with(f"{BASE_URL}/feed")
+        assert [c.title for c in contents] == ["Recent Post"]
+        assert truncated == []
+
+
 class TestExportSubstackToEpub:
     """Tests for export_substack_to_epub."""
 
@@ -391,9 +524,11 @@ class TestExportSubstackToEpub:
             since_days=30,
         )
 
-        assert result is not None
-        assert result.exists()
-        book = epub.read_epub(str(result))
+        assert result.output_path is not None
+        assert result.output_path.exists()
+        assert result.via_api == [BASE_URL]
+        assert result.unreachable == []
+        book = epub.read_epub(str(result.output_path))
         docs = [
             item
             for item in book.get_items_of_type(ITEM_DOCUMENT)
@@ -415,7 +550,8 @@ class TestExportSubstackToEpub:
         result = await export_substack_to_epub(
             publications=[BASE_URL], output_dir=tmp_path
         )
-        assert result is None
+        assert result.output_path is None
+        assert result.post_count == 0
 
     @pytest.mark.asyncio
     async def test_continues_after_archive_error(self, tmp_path, monkeypatch, caplog):
@@ -446,8 +582,47 @@ class TestExportSubstackToEpub:
             output_dir=tmp_path,
             since_days=30,
         )
-        assert result is not None
-        assert "Failed to fetch archive" in caplog.text
+        assert result.output_path is not None
+        assert result.via_api == [BASE_URL]
+        assert [host for host, _ in result.unreachable] == ["https://bad.substack.com"]
+        assert "Failed to fetch https://bad.substack.com" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_rss_when_api_is_blocked(self, tmp_path, monkeypatch):
+        """A publication blocked on the JSON API still lands via its feed."""
+
+        async def get(url, params=None):
+            response = MagicMock()
+            response.raise_for_status.return_value = None
+            if "/api/v1/" in url:
+                raise RuntimeError("403 Forbidden")
+            response.text = recent_feed_xml()
+            return response
+
+        client = MagicMock()
+        client.get = AsyncMock(side_effect=get)
+        client.__aenter__ = AsyncMock(return_value=client)
+        client.__aexit__ = AsyncMock(return_value=None)
+        monkeypatch.setattr(
+            "unhook.substack_service._make_client", lambda sid=None: client
+        )
+
+        result = await export_substack_to_epub(
+            publications=[BASE_URL], output_dir=tmp_path, since_days=1
+        )
+
+        assert result.via_api == []
+        assert result.via_rss == [BASE_URL]
+        assert result.unreachable == []
+        assert result.post_count == 1
+        assert result.output_path is not None
+        book = epub.read_epub(str(result.output_path))
+        docs = [
+            item
+            for item in book.get_items_of_type(ITEM_DOCUMENT)
+            if "email_" in item.get_name()
+        ]
+        assert b"Hello from RSS" in docs[0].get_content()
 
     @pytest.mark.asyncio
     async def test_paywalled_skips_are_info_without_cookie(
@@ -479,7 +654,7 @@ class TestExportSubstackToEpub:
         result = await export_substack_to_epub(
             publications=[BASE_URL], output_dir=tmp_path, since_days=30
         )
-        assert result is not None
+        assert result.output_path is not None
         assert "only free posts are included" in caplog.text
         assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
@@ -511,7 +686,7 @@ class TestExportSubstackToEpub:
             since_days=30,
             sid="stale-cookie",
         )
-        assert result is not None
+        assert result.output_path is not None
         assert "may have expired" in caplog.text
         assert "paid-post" in caplog.text
 
@@ -547,8 +722,8 @@ class TestExportSubstackToEpub:
         result = await export_substack_to_epub(
             publications=[BASE_URL], output_dir=tmp_path, since_days=30
         )
-        assert result is not None
-        book = epub.read_epub(str(result))
+        assert result.output_path is not None
+        book = epub.read_epub(str(result.output_path))
         first_chapter = next(
             item
             for item in book.get_items_of_type(ITEM_DOCUMENT)

@@ -1,5 +1,6 @@
 """Test cases for the __main__ module."""
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -11,6 +12,7 @@ from ebooklib import ITEM_DOCUMENT, epub
 from typer.testing import CliRunner
 
 from unhook.cmd import app, main
+from unhook.substack_service import DigestResult
 
 
 @pytest.fixture
@@ -232,7 +234,13 @@ class TestSubstackToKindle:
         """It exports posts to EPUB successfully."""
         from unhook.substack_service import parse_publications
 
-        mock_export = AsyncMock(return_value=tmp_path / "substack.epub")
+        mock_export = AsyncMock(
+            return_value=DigestResult(
+                output_path=tmp_path / "substack.epub",
+                post_count=3,
+                via_api=["https://thezvi.substack.com"],
+            )
+        )
         mock_module = MagicMock(
             export_substack_to_epub=mock_export,
             parse_publications=parse_publications,
@@ -246,6 +254,7 @@ class TestSubstackToKindle:
 
             assert result.exit_code == 0
             assert "Saved EPUB" in result.output
+            assert "Reached 1/1 publication(s)" in result.output
         mock_export.assert_awaited_once()
         assert mock_export.await_args.kwargs["publications"] == [
             "https://thezvi.substack.com"
@@ -255,7 +264,7 @@ class TestSubstackToKindle:
         """It reports when no posts match criteria."""
         from unhook.substack_service import parse_publications
 
-        mock_export = AsyncMock(return_value=None)
+        mock_export = AsyncMock(return_value=DigestResult())
         mock_module = MagicMock(
             export_substack_to_epub=mock_export,
             parse_publications=parse_publications,
@@ -275,7 +284,9 @@ class TestSubstackToKindle:
         from unhook.substack_service import parse_publications
 
         monkeypatch.setenv("SUBSTACK_PUBLICATIONS", "thezvi, astralcodexten")
-        mock_export = AsyncMock(return_value=tmp_path / "substack.epub")
+        mock_export = AsyncMock(
+            return_value=DigestResult(output_path=tmp_path / "substack.epub")
+        )
         mock_module = MagicMock(
             export_substack_to_epub=mock_export,
             parse_publications=parse_publications,
@@ -288,6 +299,52 @@ class TestSubstackToKindle:
         assert mock_export.await_args.kwargs["publications"] == [
             "https://thezvi.substack.com",
             "https://astralcodexten.substack.com",
+        ]
+
+    def test_reports_unreachable_publications(self, runner: CliRunner, tmp_path):
+        """It names publications that contributed nothing, and writes a report."""
+        from unhook.substack_service import parse_publications
+
+        mock_export = AsyncMock(
+            return_value=DigestResult(
+                output_path=tmp_path / "substack.epub",
+                post_count=1,
+                via_api=["https://thezvi.substack.com"],
+                via_rss=["https://simonw.substack.com"],
+                unreachable=[("https://gwern.substack.com", "api: 403; rss: 403")],
+            )
+        )
+        mock_module = MagicMock(
+            export_substack_to_epub=mock_export,
+            parse_publications=parse_publications,
+        )
+        report_path = tmp_path / "report" / "substack.json"
+        with patch.dict("sys.modules", {"unhook.substack_service": mock_module}):
+            with runner.isolated_filesystem(temp_dir=tmp_path):
+                result = runner.invoke(
+                    app,
+                    [
+                        "substack-to-kindle",
+                        "--publications",
+                        "thezvi",
+                        "--report-json",
+                        str(report_path),
+                    ],
+                )
+
+            assert result.exit_code == 0
+            assert "Reached 2/3 publication(s)" in result.output
+            assert "1 via API, 1 via RSS" in result.output
+            assert "gwern.substack.com" in result.output
+
+        report = json.loads(report_path.read_text())
+        assert report["reached"] == 2
+        assert report["attempted"] == 3
+        assert report["unreachable"] == [
+            {
+                "publication": "https://gwern.substack.com",
+                "reason": "api: 403; rss: 403",
+            }
         ]
 
 

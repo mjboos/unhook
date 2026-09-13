@@ -1,0 +1,123 @@
+name: Gmail to Kindle
+
+# The two schedules are exactly 84 hours apart in both directions, so the
+# digest windows tile the week with no overlap and no gap. Keep them that
+# way: an evenly spaced pair is what lets the window alone decide what is
+# new, with no record of what was already sent.
+on:
+  schedule:
+    - cron: "0 18 * * 1" # Monday 18:00 UTC (evening CET)
+    - cron: "0 6 * * 5" # Friday 06:00 UTC (morning CET), 84h later
+  workflow_dispatch:
+    inputs:
+      since_days:
+        description: "Backfill a missed run: include the last N days instead"
+        required: false
+        default: ""
+      label:
+        description: "Gmail label to fetch"
+        required: false
+        default: "newsletters"
+
+concurrency:
+  group: gmail-kindle
+  cancel-in-progress: false
+
+jobs:
+  fetch-and-send:
+    runs-on: ubuntu-latest
+    env:
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      GAPPPWD: ${{ secrets.GAPPPWD }}
+      SINCE_DAYS: ${{ inputs.since_days }}
+      LABEL: ${{ inputs.label || 'newsletters' }}
+      # Half a week. Must match the spacing of the two cron entries above.
+      WINDOW_HOURS: "84"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Fetch Gmail and export EPUB
+        id: export
+        run: |
+          # A scheduled run uses its calendar period; a dispatch may pass
+          # since_days to backfill a window a missed run left behind.
+          if [ -n "$SINCE_DAYS" ]; then
+            window_args=(--since-days "$SINCE_DAYS")
+          else
+            window_args=(--window-hours "$WINDOW_HOURS")
+          fi
+
+          uv run python -m unhook.cmd gmail-to-kindle \
+            "${window_args[@]}" \
+            --label "$LABEL" \
+            --output-dir "exports" \
+            --file-prefix "newsletters"
+
+          # Check if any EPUB was created
+          if ls exports/*.epub 1> /dev/null 2>&1; then
+            echo "epub_created=true" >> $GITHUB_OUTPUT
+          else
+            echo "epub_created=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate EPUB has no remote embedded images
+        if: steps.export.outputs.epub_created == 'true'
+        run: |
+          epub_path="$(ls -t exports/*.epub | head -n 1)"
+          echo "Validating $epub_path"
+          tmpdir="$(mktemp -d)"
+          unzip -q "$epub_path" -d "$tmpdir"
+          python - <<'PY' "$tmpdir/EPUB"
+          import pathlib
+          import re
+          import sys
+
+          epub_dir = pathlib.Path(sys.argv[1])
+          pattern = re.compile(
+              r"<img\b[^>]*\bsrc\s*=\s*(?:[\"']https?://[^\"']+[\"']|https?://[^\s>]+)",
+              re.IGNORECASE,
+          )
+          violations = []
+
+          for xhtml_path in sorted(epub_dir.glob("*.xhtml")):
+              text = xhtml_path.read_text(encoding="utf-8", errors="ignore")
+              for lineno, line in enumerate(text.splitlines(), start=1):
+                  if pattern.search(line):
+                      violations.append((xhtml_path.name, lineno, line.strip()))
+
+          if violations:
+              print("Found remote embedded image src in EPUB XHTML:")
+              for file_name, lineno, line in violations:
+                  print(f"{file_name}:{lineno}: {line}")
+              raise SystemExit(1)
+
+          print("No remote embedded image sources found.")
+          PY
+
+      - name: Send EPUB via email
+        if: steps.export.outputs.epub_created == 'true'
+        uses: dawidd6/action-send-mail@v5
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.GAPPPWD }}
+          secure: false
+          subject: "Newsletter digest"
+          to: ${{ secrets.AMAZON_KINDLE_ADDRESS }}
+          from: "Github actions <${{ secrets.SMTP_USERNAME }}>"
+          body: "Automated newsletter EPUB export."
+          attachments: "exports/*.epub"
+
+      - name: Log no emails found
+        if: steps.export.outputs.epub_created == 'false'
+        run: echo "No emails found matching criteria. Skipping send."

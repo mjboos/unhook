@@ -20,6 +20,14 @@ from unhook.gmail_epub_service import (
     export_gmail_to_epub,
 )
 from unhook.gmail_service import GmailConfig, RawEmail
+from unhook.window import Window
+
+# These tests mock GmailService, so the window only needs to be a valid
+# interval; the filtering it drives is covered in test_gmail_service.py.
+TEST_WINDOW = Window(
+    start=datetime(2024, 1, 1, tzinfo=UTC),
+    end=datetime(2024, 1, 2, tzinfo=UTC),
+)
 
 
 def _create_test_image(
@@ -655,7 +663,7 @@ async def test_export_gmail_to_epub_success(tmp_path, monkeypatch):
         result = await export_gmail_to_epub(
             config=config,
             output_dir=tmp_path,
-            since_days=1,
+            window=TEST_WINDOW,
         )
 
     assert result is not None
@@ -679,6 +687,7 @@ async def test_export_gmail_to_epub_no_emails(tmp_path, monkeypatch):
         result = await export_gmail_to_epub(
             config=config,
             output_dir=tmp_path,
+            window=TEST_WINDOW,
         )
 
     assert result is None
@@ -722,6 +731,7 @@ async def test_export_gmail_to_epub_skips_failed_parsing(tmp_path, monkeypatch):
         result = await export_gmail_to_epub(
             config=config,
             output_dir=tmp_path,
+            window=TEST_WINDOW,
         )
 
     assert result is not None
@@ -771,6 +781,7 @@ async def test_export_gmail_to_epub_sorts_by_date(tmp_path, monkeypatch):
         result = await export_gmail_to_epub(
             config=config,
             output_dir=tmp_path,
+            window=TEST_WINDOW,
         )
 
     book = epub.read_epub(str(result))

@@ -22,6 +22,7 @@ from unhook.email_content import (
     strip_remote_image_tags,
 )
 from unhook.gmail_service import GmailConfig, GmailService
+from unhook.window import Window
 
 logger = logging.getLogger(__name__)
 
@@ -404,7 +405,7 @@ class EmailEpubBuilder:
 async def export_gmail_to_epub(
     config: GmailConfig,
     output_dir: Path | str,
-    since_days: int = 1,
+    window: Window,
     file_prefix: str = "newsletters",
 ) -> Path | None:
     """Fetch emails from Gmail and export to EPUB.
@@ -412,7 +413,7 @@ async def export_gmail_to_epub(
     Args:
         config: Gmail configuration.
         output_dir: Directory to save the EPUB file.
-        since_days: Only include emails from the last N days.
+        window: Half-open interval of message dates to include.
         file_prefix: Prefix for the output filename.
 
     Returns:
@@ -423,13 +424,14 @@ async def export_gmail_to_epub(
 
     # Fetch emails from Gmail
     with GmailService(config) as service:
-        raw_emails = service.fetch_emails_by_label(since_days=since_days)
+        raw_emails = service.fetch_emails_by_label(window)
 
     if not raw_emails:
         logger.warning(
-            "No emails found in label '%s' from the last %d days",
+            "No emails found in label '%s' between %s and %s",
             config.label,
-            since_days,
+            window.start.isoformat(),
+            window.end.isoformat(),
         )
         return None
 

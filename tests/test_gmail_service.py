@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from unhook.gmail_service import GmailConfig, GmailService, RawEmail
+from unhook.window import Window
 
 
 @pytest.fixture
@@ -94,7 +95,7 @@ class TestGmailService:
         service = GmailService(gmail_config)
 
         with pytest.raises(RuntimeError, match="Not connected"):
-            service.fetch_emails_by_label()
+            service.fetch_emails_by_label(TEST_WINDOW)
 
     def test_fetch_emails_selects_label(self, gmail_config):
         """It selects the configured label."""
@@ -105,7 +106,7 @@ class TestGmailService:
             mock_imap.return_value = mock_conn
 
             with GmailService(gmail_config) as service:
-                service.fetch_emails_by_label()
+                service.fetch_emails_by_label(TEST_WINDOW)
 
             mock_conn.select.assert_called_once()
             call_args = mock_conn.select.call_args[0]
@@ -119,7 +120,7 @@ class TestGmailService:
             mock_imap.return_value = mock_conn
 
             with GmailService(gmail_config) as service:
-                result = service.fetch_emails_by_label()
+                result = service.fetch_emails_by_label(TEST_WINDOW)
 
             assert result == []
 
@@ -132,7 +133,7 @@ class TestGmailService:
             mock_imap.return_value = mock_conn
 
             with GmailService(gmail_config) as service:
-                result = service.fetch_emails_by_label()
+                result = service.fetch_emails_by_label(TEST_WINDOW)
 
             assert result == []
 
@@ -247,6 +248,13 @@ class TestRawEmailDataclass:
         )
         assert raw.html_body is None
         assert raw.text_body is None
+
+
+# Spans the fixed Date header that _build_mime_email stamps on messages.
+TEST_WINDOW = Window(
+    start=datetime(2024, 1, 1, tzinfo=UTC),
+    end=datetime(2024, 1, 2, tzinfo=UTC),
+)
 
 
 def _build_mime_email(
@@ -449,7 +457,7 @@ class TestFetchEmailsByLabelLoop:
             mock_imap.return_value = mock_conn
 
             with GmailService(gmail_config) as service:
-                result = service.fetch_emails_by_label(since_days=7)
+                result = service.fetch_emails_by_label(TEST_WINDOW)
 
             assert len(result) == 2
             assert all(isinstance(r, RawEmail) for r in result)
@@ -471,9 +479,57 @@ class TestFetchEmailsByLabelLoop:
             mock_imap.return_value = mock_conn
 
             with GmailService(gmail_config) as service:
-                result = service.fetch_emails_by_label(since_days=7)
+                result = service.fetch_emails_by_label(TEST_WINDOW)
 
             assert len(result) == 1
+
+    def test_fetch_emails_excludes_messages_outside_the_window(self, gmail_config):
+        """IMAP SINCE is date-granular, so the exact bounds are applied here.
+
+        Without this pass a window is really "since midnight N days ago",
+        which is what made consecutive digests re-send the same mail.
+        """
+        inside = _build_mime_email(
+            date="Mon, 01 Jan 2024 12:00:00 +0000", html_body="<p>Inside</p>"
+        ).as_bytes()
+        too_early = _build_mime_email(
+            date="Sun, 31 Dec 2023 23:59:00 +0000", html_body="<p>Already sent</p>"
+        ).as_bytes()
+
+        with patch("unhook.gmail_service.imaplib.IMAP4_SSL") as mock_imap:
+            mock_conn = MagicMock()
+            mock_conn.select.return_value = ("OK", [b"1"])
+            mock_conn.search.return_value = ("OK", [b"1 2"])
+            mock_conn.fetch.side_effect = [
+                ("OK", [(b"1 (UID 10 RFC822 {1000}", too_early), b")"]),
+                ("OK", [(b"2 (UID 11 RFC822 {1000}", inside), b")"]),
+            ]
+            mock_imap.return_value = mock_conn
+
+            with GmailService(gmail_config) as service:
+                result = service.fetch_emails_by_label(TEST_WINDOW)
+
+            assert len(result) == 1
+            assert result[0].date == datetime(2024, 1, 1, 12, tzinfo=UTC)
+
+    def test_fetch_emails_excludes_the_end_boundary(self, gmail_config):
+        """A message landing on the end boundary belongs to the next run."""
+        on_boundary = _build_mime_email(
+            date="Tue, 02 Jan 2024 00:00:00 +0000", html_body="<p>Next time</p>"
+        ).as_bytes()
+
+        with patch("unhook.gmail_service.imaplib.IMAP4_SSL") as mock_imap:
+            mock_conn = MagicMock()
+            mock_conn.select.return_value = ("OK", [b"1"])
+            mock_conn.search.return_value = ("OK", [b"1"])
+            mock_conn.fetch.return_value = (
+                "OK",
+                [(b"1 (UID 12 RFC822 {1000}", on_boundary), b")"],
+            )
+            mock_imap.return_value = mock_conn
+
+            with GmailService(gmail_config) as service:
+                assert service.fetch_emails_by_label(TEST_WINDOW) == []
 
     def test_fetch_emails_skips_none_results(self, gmail_config):
         """It skips emails that parse to None."""
@@ -485,7 +541,7 @@ class TestFetchEmailsByLabelLoop:
             mock_imap.return_value = mock_conn
 
             with GmailService(gmail_config) as service:
-                result = service.fetch_emails_by_label(since_days=7)
+                result = service.fetch_emails_by_label(TEST_WINDOW)
 
             assert result == []
 

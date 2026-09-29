@@ -51,19 +51,34 @@ class TestDigestWindow:
                 assert window.start == previous.end
             previous = window
 
-    def test_default_boundaries_fall_twice_a_week(self):
-        """84 hours puts the boundaries on Monday and Friday, forever."""
+    def test_default_boundaries_fall_four_times_a_week(self):
+        """42 hours puts the boundaries on the same four slots, forever.
+
+        These must match the cron entries in gmail-kindle.yml.
+        """
         seen = set()
-        for step in range(60):
+        for step in range(120):
             end = digest_window(
                 DEFAULT_ANCHOR + timedelta(hours=DEFAULT_WINDOW_HOURS * (step + 1))
             ).end
             seen.add((end.strftime("%A"), end.strftime("%H:%M")))
-        assert seen == {("Monday", "18:00"), ("Friday", "06:00")}
+        assert seen == {
+            ("Monday", "18:00"),
+            ("Wednesday", "12:00"),
+            ("Friday", "06:00"),
+            ("Sunday", "00:00"),
+        }
 
-    def test_two_periods_make_exactly_one_week(self):
-        """The pair repeats weekly, so local delivery times stay put."""
-        assert DEFAULT_WINDOW_HOURS * 2 == 7 * 24
+    def test_four_periods_make_exactly_one_week(self):
+        """The cycle repeats weekly, so local delivery times stay put."""
+        assert DEFAULT_WINDOW_HOURS * 4 == 7 * 24
+
+    def test_switch_from_84_hours_neither_repeats_nor_skips(self):
+        """The first 42h window starts where the last 84h window ended."""
+        last_run_at_84 = datetime(2026, 9, 28, 18, 30, tzinfo=UTC)
+        last_84 = digest_window(last_run_at_84, window_hours=84)
+        first_42 = digest_window(last_84.end + timedelta(hours=42, minutes=30))
+        assert first_42.start == last_84.end
 
     def test_custom_period_and_anchor(self):
         """A different cadence is a different period length."""

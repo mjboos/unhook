@@ -181,11 +181,17 @@ def strip_remote_image_tags(html: str) -> str:
     return _IMG_TAG_PATTERN.sub(_remove_if_remote, html)
 
 
+def strip_all_image_tags(html: str) -> str:
+    """Remove every image tag from HTML, for a text-only EPUB."""
+    return _IMG_TAG_PATTERN.sub("", html)
+
+
 __all__ = [
     "EmailContent",
     "extract_publication",
     "parse_raw_email",
     "replace_cid_references",
     "replace_external_image_urls",
+    "strip_all_image_tags",
     "strip_remote_image_tags",
 ]

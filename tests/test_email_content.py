@@ -10,6 +10,7 @@ from unhook.email_content import (
     parse_raw_email,
     replace_cid_references,
     replace_external_image_urls,
+    strip_all_image_tags,
     strip_remote_image_tags,
 )
 from unhook.gmail_service import RawEmail
@@ -339,3 +340,12 @@ class TestStripRemoteImageTags:
     def test_handles_empty_html(self):
         """It handles empty HTML."""
         assert strip_remote_image_tags("") == ""
+
+
+def test_strip_all_image_tags_removes_local_and_remote_images():
+    """Text-only mode removes every image, whatever its source."""
+    html = (
+        '<p>Keep</p><img src="cid:a"><img src="images/b.jpg" alt="x > y">'
+        '<img src="https://example.com/c.png"/>'
+    )
+    assert strip_all_image_tags(html) == "<p>Keep</p>"

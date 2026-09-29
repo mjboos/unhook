@@ -8,6 +8,7 @@ import pytest
 from ebooklib import ITEM_DOCUMENT, epub
 from PIL import Image
 
+from unhook import gmail_epub_service
 from unhook.email_content import EmailContent
 from unhook.gmail_epub_service import (
     EmailEpubBuilder,
@@ -608,6 +609,38 @@ class TestEmailEpubBuilder:
         assert "color:red" not in combined
         assert "Actual content" in combined
 
+    def test_text_only_build_drops_every_image(self, tmp_path):
+        """With images disabled, no image is embedded or referenced."""
+        test_image = _create_test_image(400, 400, "RGB", "JPEG")
+        email = EmailContent(
+            title="Email with Images",
+            html_body=(
+                '<p>Text</p><img src="cid:inline1">'
+                '<img src="https://example.com/img.jpg">'
+            ),
+            published=datetime.now(UTC),
+            inline_images={"inline1": test_image},
+            external_image_urls=["https://example.com/img.jpg"],
+        )
+        external_images = {
+            "https://example.com/img.jpg": (test_image, "image/jpeg"),
+        }
+
+        builder = EmailEpubBuilder()
+        result = builder.build(
+            [email], external_images, tmp_path / "t.epub", include_images=False
+        )
+
+        book = epub.read_epub(str(result))
+        items = list(book.get_items())
+        assert not [i for i in items if i.media_type and "image" in i.media_type]
+        chapter = next(
+            d for d in book.get_items_of_type(ITEM_DOCUMENT) if "email_1" in d.file_name
+        )
+        body = chapter.get_content().decode()
+        assert "<img" not in body
+        assert "Text" in body
+
     def test_creates_output_directory(self, tmp_path):
         """It creates output directory if it doesn't exist."""
         email = EmailContent(
@@ -794,3 +827,58 @@ async def test_export_gmail_to_epub_sorts_by_date(tmp_path, monkeypatch):
     ]
     first_content = content_docs[0].get_content().decode() if content_docs else ""
     assert "Newer" in first_content
+
+
+async def _export_with_inline_image(tmp_path):
+    """Export one email carrying an inline image, with Gmail mocked out."""
+    raw = RawEmail(
+        uid="1",
+        subject="Picture newsletter",
+        sender="news@example.com",
+        date=datetime.now(UTC),
+        html_body='<p>Words</p><img src="cid:pic1">',
+        text_body=None,
+        inline_images={"pic1": _create_test_image(400, 400, "RGB", "JPEG")},
+    )
+    mock_service = MagicMock()
+    mock_service.fetch_emails_by_label.return_value = [raw]
+    mock_service.__enter__ = MagicMock(return_value=mock_service)
+    mock_service.__exit__ = MagicMock(return_value=None)
+
+    with patch("unhook.gmail_epub_service.GmailService", return_value=mock_service):
+        config = GmailConfig(email_address="test@gmail.com", app_password="pw")
+        return await export_gmail_to_epub(
+            config=config, output_dir=tmp_path, window=TEST_WINDOW
+        )
+
+
+def _image_count(path) -> int:
+    book = epub.read_epub(str(path))
+    return len(
+        [i for i in book.get_items() if i.media_type and "image" in i.media_type]
+    )
+
+
+@pytest.mark.asyncio
+async def test_export_keeps_images_under_the_size_limit(tmp_path):
+    """A digest that fits in an email keeps its images."""
+    result = await _export_with_inline_image(tmp_path)
+
+    assert result.stat().st_size <= gmail_epub_service.MAX_EPUB_BYTES
+    assert _image_count(result) == 1
+
+
+@pytest.mark.asyncio
+async def test_export_drops_images_when_over_the_size_limit(tmp_path, monkeypatch):
+    """A digest too big for Gmail is rebuilt text-only rather than lost."""
+    monkeypatch.setattr(gmail_epub_service, "MAX_EPUB_BYTES", 1)
+
+    result = await _export_with_inline_image(tmp_path)
+
+    assert result.exists()
+    assert _image_count(result) == 0
+    book = epub.read_epub(str(result))
+    text = "".join(
+        d.get_content().decode() for d in book.get_items_of_type(ITEM_DOCUMENT)
+    )
+    assert "Words" in text

@@ -11,9 +11,11 @@ So don't measure from the run.  Cut the timeline into fixed periods from
 a fixed anchor: every instant then falls in exactly one period, whatever
 time the job actually starts, and consecutive digests tile exactly.
 
-With the default 84-hour period the boundaries land on Monday 18:00 and
-Friday 06:00 UTC in perpetuity — twice a week, evenly spaced, since two
-periods make exactly seven days.
+With the default 42-hour period the boundaries land on Monday 18:00,
+Wednesday 12:00, Friday 06:00 and Sunday 00:00 UTC in perpetuity — four
+times a week, evenly spaced, since four periods make exactly seven days.
+The period is short so that each digest stays under Gmail's 25 MB message
+limit.
 """
 
 from __future__ import annotations
@@ -26,8 +28,10 @@ from datetime import UTC, datetime, timedelta
 # puts the boundaries at a convenient hour either side of the weekend.
 DEFAULT_ANCHOR = datetime(2024, 1, 1, 18, 0, tzinfo=UTC)
 
-# Half of a week. Two runs per week, 3.5 days apart, no remainder.
-DEFAULT_WINDOW_HOURS = 84.0
+# A quarter of a week. Four runs per week, 1.75 days apart, no remainder.
+# Halving the earlier 84 hours kept every old boundary, so switching over
+# neither repeated nor skipped a newsletter.
+DEFAULT_WINDOW_HOURS = 42.0
 
 
 @dataclass(frozen=True)
@@ -63,7 +67,7 @@ def digest_window(
 
     Args:
         now: The moment the digest is being built.
-        window_hours: Length of each period. 84 gives two per week.
+        window_hours: Length of each period. 42 gives four per week.
         anchor: Any instant that sits on a period boundary.
 
     Returns:

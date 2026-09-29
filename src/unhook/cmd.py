@@ -106,8 +106,8 @@ def gmail_to_kindle(
         DEFAULT_WINDOW_HOURS,
         help=(
             "Length of each digest period in hours. Periods are measured "
-            "from a fixed anchor, so consecutive runs tile exactly. 84 "
-            "gives two evenly spaced runs per week"
+            "from a fixed anchor, so consecutive runs tile exactly. 42 "
+            "gives four evenly spaced runs per week"
         ),
     ),
     anchor: datetime = typer.Option(

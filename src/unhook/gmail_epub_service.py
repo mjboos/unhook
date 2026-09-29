@@ -19,6 +19,7 @@ from unhook.email_content import (
     parse_raw_email,
     replace_cid_references,
     replace_external_image_urls,
+    strip_all_image_tags,
     strip_remote_image_tags,
 )
 from unhook.gmail_service import GmailConfig, GmailService
@@ -28,6 +29,12 @@ logger = logging.getLogger(__name__)
 
 MAX_IMAGE_DIMENSION = 1200
 JPEG_QUALITY = 65
+
+# Largest EPUB that still gets through Gmail's SMTP. Gmail rejects messages
+# over 25 MB (552 5.3.4), and base64 encoding inflates an attachment by a
+# third, so the file itself must stay near 18 MB; 17 MB leaves room for
+# headers. An EPUB over this is rebuilt without images rather than lost.
+MAX_EPUB_BYTES = 17_000_000
 
 # HTML tags allowed in email content for EPUB
 # NOTE: table/tbody/thead/tr/td/th are intentionally excluded.
@@ -303,6 +310,7 @@ class EmailEpubBuilder:
         emails: list[EmailContent],
         external_images: dict[str, tuple[bytes, str]],
         output_path: Path,
+        include_images: bool = True,
     ) -> Path:
         """Build an EPUB file from email content.
 
@@ -310,6 +318,8 @@ class EmailEpubBuilder:
             emails: List of EmailContent to include.
             external_images: Mapping of URL to ``(bytes, media_type)`` tuples.
             output_path: Path to write the EPUB file.
+            include_images: Embed images. When False every image tag is
+                dropped, which keeps an oversized digest deliverable.
 
         Returns:
             Path to the created EPUB file.
@@ -332,8 +342,12 @@ class EmailEpubBuilder:
             cid_to_filename: dict[str, str] = {}
             url_to_filename: dict[str, str] = {}
 
+            if not include_images:
+                html_body = strip_all_image_tags(html_body)
+
             # Handle inline images (CID references)
-            for cid, image_bytes in email_content.inline_images.items():
+            inline_images = email_content.inline_images if include_images else {}
+            for cid, image_bytes in inline_images.items():
                 image_counter += 1
                 guessed_type = _guess_media_type(cid)
                 compressed, media_type = _compress_image(image_bytes, guessed_type)
@@ -350,7 +364,7 @@ class EmailEpubBuilder:
 
             # Handle external images
             for url in email_content.external_image_urls:
-                if url in external_images:
+                if include_images and url in external_images:
                     image_counter += 1
                     image_data, media_type = external_images[url]
                     filename = _generate_image_filename(
@@ -471,7 +485,17 @@ async def export_gmail_to_epub(
     output_path = output_dir / f"{file_prefix}-{timestamp}.epub"
 
     builder = EmailEpubBuilder(title=f"Newsletters - {timestamp}")
-    return builder.build(email_contents, external_images, output_path)
+    builder.build(email_contents, external_images, output_path)
+
+    size = output_path.stat().st_size
+    if size > MAX_EPUB_BYTES:
+        logger.warning(
+            "EPUB is %.1f MB, over the %.1f MB email limit; rebuilding without images",
+            size / 1e6,
+            MAX_EPUB_BYTES / 1e6,
+        )
+        builder.build(email_contents, {}, output_path, include_images=False)
+    return output_path
 
 
 __all__ = ["EmailEpubBuilder", "export_gmail_to_epub"]

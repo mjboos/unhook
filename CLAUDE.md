@@ -9,7 +9,7 @@ Unhook is a tool designed to help users reclaim their attention from social medi
 1. **Feed fetching**: Fetch Bluesky timeline or author feed posts, with self-thread detection and consolidation, and save to parquet files
 2. **EPUB creation**: Filter posts by length, deduplicate, handle reposts and quoted posts, download and compress images, and export as EPUB
 3. **Newsletter digests**: Fetch newsletters from a Gmail label and export as EPUB (`gmail-to-kindle`) — this is the scheduled path. A Substack JSON API path (`substack-to-kindle`) exists for manual use, but cannot be scheduled on GitHub Actions: Cloudflare returns 403 for every `*.substack.com` publication from runner IPs
-4. **Kindle delivery**: Scheduled GitHub Actions workflows email EPUBs to a Kindle address (weekly for Bluesky, Monday and Thursday for newsletters)
+4. **Kindle delivery**: Scheduled GitHub Actions workflows email EPUBs to a Kindle address (weekly for Bluesky, four times a week for newsletters)
 
 ## Development Setup
 
@@ -63,12 +63,12 @@ uv run unhook export-epub --output-dir ./out         # custom output directory
 
 ### Gmail to Kindle EPUB
 Fetch emails from a Gmail label and export as EPUB. This is the scheduled
-newsletter path (`gmail-kindle.yml`, Monday and Thursday), since Substack
+newsletter path (`gmail-kindle.yml`, four times a week), since Substack
 emails reach the inbox without passing Cloudflare's bot challenge:
 ```bash
-uv run unhook gmail-to-kindle                        # current 84h digest period
+uv run unhook gmail-to-kindle                        # current 42h digest period
 uv run unhook gmail-to-kindle --label newsletters    # custom Gmail label
-uv run unhook gmail-to-kindle --window-hours 168     # weekly period instead
+uv run unhook gmail-to-kindle --window-hours 84      # twice-weekly period instead
 uv run unhook gmail-to-kindle --since-days 4         # backfill a missed run
 uv run unhook gmail-to-kindle --output-dir ./out     # custom output directory
 ```
@@ -78,8 +78,16 @@ measured from a fixed anchor (`window.py`) rather than from the moment the
 job runs. Consecutive digests therefore tile the calendar exactly — no
 newsletter is sent twice and none is skipped — with no record kept of what
 was already sent, and without drifting when a scheduled run starts late.
-At the default 84 hours the boundaries fall on Monday 18:00 and Friday
-06:00 UTC in perpetuity, since two periods make exactly one week.
+At the default 42 hours the boundaries fall on Monday 18:00, Wednesday
+12:00, Friday 06:00 and Sunday 00:00 UTC in perpetuity, since four periods
+make exactly one week.
+
+The period is kept short because of size: Gmail rejects a message over
+25 MB (`552 5.3.4`), which is about 18 MB of base64-encoded EPUB, and a
+half-week of image-heavy newsletters exceeded that. As a safety net,
+`export_gmail_to_epub` rebuilds any EPUB over `MAX_EPUB_BYTES` without
+images, so an unusually heavy period arrives text-only instead of not at
+all.
 
 `--since-days` overrides the schedule with a plain trailing window. It is
 for backfilling a window a missed run left behind; repeated use re-sends
@@ -216,7 +224,7 @@ uv run tox -e pre-commit
   - `test.yml`: Runs tests and pre-commit on push/PR to main (Ubuntu + Windows, Python 3.12)
   - `integration.yml`: Manual dispatch for Bluesky integration test with EPUB export
   - `kindle.yml`: Weekly Bluesky EPUB to Kindle (Saturday 18:00 UTC)
-  - `gmail-kindle.yml`: Newsletter EPUB to Kindle from a Gmail label. The scheduled newsletter path. Its two cron entries (Monday 18:00 and Friday 06:00 UTC) are exactly 84 hours apart in both directions, matching `WINDOW_HOURS`, so the digest windows tile the week without overlap or gaps. Change one and you must change the others; a `concurrency` group keeps a manual dispatch from racing the cron
+  - `gmail-kindle.yml`: Newsletter EPUB to Kindle from a Gmail label. The scheduled newsletter path. Its four cron entries (Monday 18:00, Wednesday 12:00, Friday 06:00 and Sunday 00:00 UTC) are exactly 42 hours apart all the way round the week, matching `WINDOW_HOURS`, so the digest windows tile the week without overlap or gaps. Change one and you must change the others; a `concurrency` group keeps a manual dispatch from racing the cron
   - `substack-kindle.yml`: Substack API EPUB to Kindle, **manual dispatch only**. Cloudflare returns 403 for every `*.substack.com` publication from GitHub-hosted runner IPs, which silently dropped 68 of 104 publications. Measured from a runner: no client-side mitigation changes this — not cipher ordering, browser headers, Chrome TLS/HTTP2 impersonation via `curl_cffi`, nor the RSS feed, which is challenged identically. Custom-domain publications (~34 of the list) are served from their own Cloudflare zones and still work, so dispatch remains useful for those. The run writes a per-publication report, prints it to the job summary, and fails when fewer than `MIN_REACHED_FRACTION` of publications were reachable. `SINCE_DAYS` must match the cadence — the pipeline keeps no record of what it already sent, so a wider window re-sends posts
 - `.env`: Credentials (not committed to git)
 - Minimum Python version: 3.12

@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import mimetypes
 import re
-from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 
@@ -481,7 +480,9 @@ async def export_gmail_to_epub(
     )
 
     # Build EPUB
-    timestamp = datetime.now().strftime("%Y-%m-%d")
+    # Named after the period, not the run, so a replayed period gets its own
+    # distinct title on the Kindle rather than today's.
+    timestamp = window.end.strftime("%Y-%m-%d")
     output_path = output_dir / f"{file_prefix}-{timestamp}.epub"
 
     builder = EmailEpubBuilder(title=f"Newsletters - {timestamp}")

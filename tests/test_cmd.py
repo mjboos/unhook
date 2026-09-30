@@ -198,6 +198,62 @@ class TestGmailToKindle:
             assert result.exit_code == 0
             assert "Saved EPUB" in result.output
 
+    @pytest.mark.parametrize(
+        ("as_of", "start", "end"),
+        [
+            # The two 42h periods run #74's failed 84h digest covered.
+            ("2026-09-27T00:00:00", (2026, 9, 25, 6), (2026, 9, 27, 0)),
+            ("2026-09-28T18:00:00", (2026, 9, 27, 0), (2026, 9, 28, 18)),
+            # Any instant inside the next period replays the same one.
+            ("2026-09-29 09:30", (2026, 9, 27, 0), (2026, 9, 28, 18)),
+            # An explicit offset is honoured: 20:00+02:00 is 18:00 UTC.
+            ("2026-09-28T20:00:00+0200", (2026, 9, 27, 0), (2026, 9, 28, 18)),
+        ],
+    )
+    def test_as_of_replays_a_past_period(
+        self, runner: CliRunner, tmp_path, as_of, start, end
+    ):
+        """It builds the window a run at --as-of would have built."""
+        mock_export = AsyncMock(return_value=tmp_path / "newsletters.epub")
+        with patch.dict(
+            "sys.modules",
+            {"unhook.gmail_epub_service": MagicMock(export_gmail_to_epub=mock_export)},
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "gmail-to-kindle",
+                    "--gmail-address",
+                    "test@gmail.com",
+                    "--gmail-app-password",
+                    "app-pass",
+                    "--as-of",
+                    as_of,
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        window = mock_export.await_args.kwargs["window"]
+        assert window.start == datetime(*start, tzinfo=UTC)
+        assert window.end == datetime(*end, tzinfo=UTC)
+
+    def test_as_of_rejects_the_future(self, runner: CliRunner):
+        """A period that has not closed yet cannot be replayed."""
+        result = runner.invoke(
+            app,
+            [
+                "gmail-to-kindle",
+                "--gmail-address",
+                "test@gmail.com",
+                "--gmail-app-password",
+                "app-pass",
+                "--as-of",
+                "2999-01-01T00:00:00",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "in the future" in result.output
+
     def test_no_emails_found(self, runner: CliRunner, tmp_path):
         """It reports when no emails match criteria."""
         mock_export = AsyncMock(return_value=None)

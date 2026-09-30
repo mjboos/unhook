@@ -122,6 +122,15 @@ def gmail_to_kindle(
             "backfilling a missed run; repeated use re-sends content"
         ),
     ),
+    as_of: datetime = typer.Option(
+        None,
+        formats=["%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M"],
+        help=(
+            "Build the digest a run at this past instant (UTC unless an "
+            "offset is given) would have built. Replays a missed period "
+            "exactly, without overlapping its neighbours"
+        ),
+    ),
     file_prefix: str = typer.Option("newsletters", help="Filename prefix for the EPUB"),
     label: str = typer.Option(
         "newsletters-kindle", help="Gmail label to fetch emails from"
@@ -173,6 +182,15 @@ def gmail_to_kindle(
     )
 
     now = datetime.now(UTC)
+    if as_of is not None:
+        as_of = as_of.replace(tzinfo=UTC) if as_of.tzinfo is None else as_of
+        if as_of > now:
+            typer.echo(
+                f"Error: --as-of {as_of:%Y-%m-%d %H:%M} UTC is in the future",
+                err=True,
+            )
+            raise typer.Exit(1)
+        now = as_of.astimezone(UTC)
     if since_days is not None:
         window = trailing_window(now, since_days)
         typer.echo(f"Backfill window: {window.start:%Y-%m-%d %H:%M} -> now")

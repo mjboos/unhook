@@ -15,6 +15,12 @@ on:
     - cron: "0 0 * * 0" # Sunday 00:00 UTC, 42h later (and 42h before Monday)
   workflow_dispatch:
     inputs:
+      as_of:
+        description: >-
+          Replay a missed period: build the digest a scheduled run at this
+          UTC time would have built, e.g. 2026-09-28T18:00:00
+        required: false
+        default: ""
       since_days:
         description: "Backfill a missed run: include the last N days instead"
         required: false
@@ -35,6 +41,7 @@ jobs:
       SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
       GAPPPWD: ${{ secrets.GAPPPWD }}
       SINCE_DAYS: ${{ inputs.since_days }}
+      AS_OF: ${{ inputs.as_of }}
       LABEL: ${{ inputs.label || 'newsletters' }}
       # A quarter of a week. Must match the spacing of the cron entries above.
       WINDOW_HOURS: "42"
@@ -53,12 +60,16 @@ jobs:
       - name: Fetch Gmail and export EPUB
         id: export
         run: |
-          # A scheduled run uses its calendar period; a dispatch may pass
-          # since_days to backfill a window a missed run left behind.
+          # A scheduled run uses its calendar period. A dispatch may pass
+          # as_of to replay the period a missed run would have sent, or
+          # since_days for a plain trailing window.
           if [ -n "$SINCE_DAYS" ]; then
             window_args=(--since-days "$SINCE_DAYS")
           else
             window_args=(--window-hours "$WINDOW_HOURS")
+          fi
+          if [ -n "$AS_OF" ]; then
+            window_args+=(--as-of "$AS_OF")
           fi
 
           uv run python -m unhook.cmd gmail-to-kindle \

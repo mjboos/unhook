@@ -69,7 +69,8 @@ emails reach the inbox without passing Cloudflare's bot challenge:
 uv run unhook gmail-to-kindle                        # current 42h digest period
 uv run unhook gmail-to-kindle --label newsletters    # custom Gmail label
 uv run unhook gmail-to-kindle --window-hours 84      # twice-weekly period instead
-uv run unhook gmail-to-kindle --since-days 4         # backfill a missed run
+uv run unhook gmail-to-kindle --as-of 2026-09-28T18:00:00  # replay a missed period
+uv run unhook gmail-to-kindle --since-days 4         # plain trailing window
 uv run unhook gmail-to-kindle --output-dir ./out     # custom output directory
 ```
 
@@ -89,10 +90,16 @@ half-week of image-heavy newsletters exceeded that. As a safety net,
 images, so an unusually heavy period arrives text-only instead of not at
 all.
 
-`--since-days` overrides the schedule with a plain trailing window. It is
-for backfilling a window a missed run left behind; repeated use re-sends
-content. A run that never happens is the one case this design cannot
-recover on its own — that is the price of keeping no state.
+A run that fails or never happens is the one case this design cannot
+recover on its own — that is the price of keeping no state. Recover it with
+`--as-of` (the `as_of` input when dispatching `gmail-kindle.yml`): the
+digest is built as a run at that instant would have built it, so passing
+each missed boundary replays exactly the missing periods and nothing else.
+Digests are titled by their period's end date, so replays don't collide.
+
+`--since-days` overrides the schedule with a plain trailing window instead;
+it does not line up with the periods, so it re-sends content on either
+side.
 
 ### Substack to Kindle EPUB
 Fetch recent posts from Substack publications via their JSON API and export

@@ -882,3 +882,14 @@ async def test_export_drops_images_when_over_the_size_limit(tmp_path, monkeypatc
         d.get_content().decode() for d in book.get_items_of_type(ITEM_DOCUMENT)
     )
     assert "Words" in text
+
+
+@pytest.mark.asyncio
+async def test_export_is_named_after_its_period(tmp_path):
+    """A replayed period gets its own title, not the date it was replayed."""
+    result = await _export_with_inline_image(tmp_path)
+
+    assert result.name == f"newsletters-{TEST_WINDOW.end:%Y-%m-%d}.epub"
+    assert epub.read_epub(str(result)).title == (
+        f"Newsletters - {TEST_WINDOW.end:%Y-%m-%d}"
+    )

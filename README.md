@@ -9,7 +9,7 @@ Unhook helps you reclaim your attention from social media and newsletters by per
 1. **Feed fetching** — Fetch your Bluesky timeline (or author feed) and save posts to parquet files. Self-threads by the same author are detected and consolidated automatically.
 2. **EPUB creation** — Convert fetched posts into an EPUB file, with images compressed and embedded. Posts are filtered by minimum length and sorted by date. Reposts are included separately with a higher length threshold. Quoted posts are inlined.
 3. **Newsletter digests** — Fetch emails from a Gmail label via IMAP and export them as an EPUB, with inline and external images embedded. Newsletter boilerplate and tracking pixels are stripped.
-4. **Kindle delivery** — Scheduled GitHub Actions workflows email EPUB digests to your Kindle address.
+4. **Kindle delivery** — Scheduled GitHub Actions workflows email EPUB digests to your Kindle address on Monday and Thursday evenings (18:00 UTC).
 
 ## Installation
 
